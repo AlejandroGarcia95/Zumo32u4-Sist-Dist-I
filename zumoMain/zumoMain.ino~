@@ -6,7 +6,6 @@
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
 
-Zumo32U4LCD lcd;
 Zumo32U4Motors motors;
 Zumo32U4ButtonA buttonA;
 Zumo32U4ButtonB buttonB;
@@ -14,7 +13,6 @@ Zumo32U4ButtonC buttonC;
 Zumo32U4Encoders encoders;
 Zumo32U4ProximitySensors proxSensors;
 L3G gyro;
-
 
 /* --------------------------------------------------------------------
 Experimentally measured constants. May wanna touch them if you
@@ -94,7 +92,7 @@ void moveDistanceInTime(int distCm, int timeSec, bool reverseDir){
 rotation is done in that direction, else the opposite (i.e. to the left).
 The rotation is made with a constant speed TURN_SPEED.
 IMPORTANT: angleDeg must be at most 90. */
-void rotate(unsigned int angleDeg, bool rotClockwise) {
+void rotate(int angleDeg, bool rotClockwise) {
   turnSensorReset();
   if(rotClockwise)
     motors.setSpeeds(TURN_SPEED, -TURN_SPEED);
@@ -108,7 +106,7 @@ void rotate(unsigned int angleDeg, bool rotClockwise) {
     angle = (((int32_t)turnAngle >> 16) * 360) >> 16;
     if(rotClockwise)
       angle = -angle;
-  } while(angle < ((int)angleDeg));
+  } while(angle < angleDeg);
   
   motors.setSpeeds(0, 0);
 }
@@ -119,15 +117,7 @@ bool objectIsInFront() {
   proxSensors.read();
   uint8_t leftValue = proxSensors.countsFrontWithLeftLeds();
   uint8_t rightValue = proxSensors.countsFrontWithRightLeds();
-
-  // TODO: Remove this printing stuff
-  lcd.clear();
-  lcd.print("L: ");
-  lcd.print(leftValue);
-  lcd.gotoXY(0, 1);
-  lcd.print("R: ");
-  lcd.print(rightValue);
-
+  
   return ((leftValue >= SENSOR_THRESHOLD) || (rightValue >= SENSOR_THRESHOLD));  
 }
 
@@ -146,22 +136,27 @@ void bodySlam(){
 void setup() {
   turnSensorSetup();
   delay(500);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo only
+  }
+  Serial.begin(9600);
+  Serial1.begin(9600);
+  Serial1.flush();
+  Serial1.readString();
   turnSensorReset();
   ledGreen(0);
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
-  lcd.clear();
+  Serial.println("On!");
+  Serial.println(SERIAL_TX_BUFFER_SIZE); 
+  Serial.println(SERIAL_RX_BUFFER_SIZE); 
 }
 
 // Main loop
 void loop() {
-  delay(10);
-  if(objectIsInFront()){
-    ledGreen(1);
-    bodySlam();
-  }
-  else {
-    ledGreen(0);
-  }
-
+  String inByte = "";
+  delay(2000);
+  Serial.println("Trying...");
+  inByte = Serial1.readString();
+  Serial.println(inByte);
 }
