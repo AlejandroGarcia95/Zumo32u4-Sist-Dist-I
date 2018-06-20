@@ -2,18 +2,13 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-#include "SoftwareSerial.h"
 
 const char* ssid = "Speedy-Fibra-BF992E";
 const char* password = "98A896E433FeA5BcF544";
 
-ESP8266WebServer server(8080);
-
 #define BLINK_LED 5
-#define TX 2
-#define RX 0
 
-SoftwareSerial toRobotSerial(RX, TX, false, 64);
+ESP8266WebServer server(8080);
 
 void handleRoot() {
   digitalWrite(BLINK_LED, 1);
@@ -25,7 +20,7 @@ void handleRoot() {
 void handleRotate() {
   digitalWrite(BLINK_LED, 1);
   delay(50);
-  toRobotSerial.println(server.arg(0));  
+  Serial1.println(server.arg(0));  
   Serial.println(server.arg(0));
  // digitalWrite(TX, server.arg(0).toInt());
   server.send(200, "text/plain", "Rotating " + server.arg(0) + " degs\n");
@@ -51,12 +46,9 @@ void handleNotFound(){
 
 void setup(void){
   pinMode(BLINK_LED, OUTPUT);
-//  pinMode(TX, OUTPUT);
   digitalWrite(BLINK_LED, 0);
-//  digitalWrite(TX, 0);
   Serial.begin(9600);
-  Serial1.begin(300);
-  toRobotSerial.begin(9600);
+  Serial1.begin(9600);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("");
@@ -90,16 +82,5 @@ void setup(void){
 }
 
 void loop(void){
-  String inByte = "";
-  delay(2000);
-  Serial.println("Trying...");
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);Serial1.write(0);
-  delay(1000);
-  //server.handleClient();
+  server.handleClient();
 }

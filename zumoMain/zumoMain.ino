@@ -136,11 +136,9 @@ void bodySlam(){
 void setup() {
   turnSensorSetup();
   delay(500);
-  while (!Serial) {
-    delay(50); // wait for serial port to connect
-  }
   Serial.begin(9600);
   Serial1.begin(9600);
+  pinMode(0, INPUT_PULLUP);
   Serial1.flush();
   Serial1.readString();
   turnSensorReset();
@@ -148,16 +146,14 @@ void setup() {
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
   Serial.println("On!");
-  Serial.println(SERIAL_TX_BUFFER_SIZE); 
-  Serial.println(SERIAL_RX_BUFFER_SIZE); 
 }
 
 // Main loop
 void loop() {
   String inStr = "";
-  delay(2000);
-  Serial.println("Trying...");
-  Serial1.println("Magic");
   inStr = Serial1.readString();
   Serial.print(inStr);
+  int angle = inStr.toInt();
+  if(angle > 1)
+    rotate(angle, false);
 }
