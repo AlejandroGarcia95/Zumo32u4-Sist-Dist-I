@@ -93,6 +93,8 @@ rotation is done in that direction, else the opposite (i.e. to the left).
 The rotation is made with a constant speed TURN_SPEED.
 IMPORTANT: angleDeg must be at most 90. */
 void rotate(int angleDeg, bool rotClockwise) {
+  if(angleDeg > 90)
+    return;
   turnSensorReset();
   if(rotClockwise)
     motors.setSpeeds(TURN_SPEED, -TURN_SPEED);
@@ -145,15 +147,24 @@ void setup() {
   ledGreen(0);
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
-  Serial.println("On!");
+  delay(100);
 }
 
 // Main loop
 void loop() {
-  String inStr = "";
-  inStr = Serial1.readString();
-  Serial.print(inStr);
-  int angle = inStr.toInt();
-  if(angle > 1)
-    rotate(angle, false);
+  if (buttonA.isPressed()){
+    Serial.println("A");
+    Serial1.println("A");
+  }
+  
+  if (buttonB.isPressed()){
+    Serial.println("B");
+    Serial1.println("B");
+  }
+
+  
+  if (buttonC.isPressed()){
+    Serial.println("C");
+    Serial1.println("C");
+  }
 }

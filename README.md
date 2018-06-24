@@ -4,7 +4,7 @@
 
 - Select board as "Generic 8285 module"
 - Select flash size as "1M (64K SPIFFS)"
-- Select reset method "node mcu"
+- Select reset method "nodemcu"
 
 ## Connection diagram
 

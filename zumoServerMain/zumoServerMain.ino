@@ -93,6 +93,8 @@ rotation is done in that direction, else the opposite (i.e. to the left).
 The rotation is made with a constant speed TURN_SPEED.
 IMPORTANT: angleDeg must be at most 90. */
 void rotate(int angleDeg, bool rotClockwise) {
+  if(angleDeg > 90)
+    return;
   turnSensorReset();
   if(rotClockwise)
     motors.setSpeeds(TURN_SPEED, -TURN_SPEED);
@@ -136,27 +138,38 @@ void bodySlam(){
 void setup() {
   turnSensorSetup();
   delay(500);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for Leonardo only
-  }
   Serial.begin(9600);
   Serial1.begin(9600);
+  pinMode(0, INPUT_PULLUP);
   Serial1.flush();
   Serial1.readString();
   turnSensorReset();
   ledGreen(0);
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
-  Serial.println("On!");
-  Serial.println(SERIAL_TX_BUFFER_SIZE); 
-  Serial.println(SERIAL_RX_BUFFER_SIZE); 
+  delay(100);
 }
 
 // Main loop
 void loop() {
-  String inByte = "";
-  delay(2000);
-  Serial.println("Trying...");
-  inByte = Serial1.readString();
-  Serial.println(inByte);
+  String commandStr = "";
+  commandStr = Serial1.readString();
+  Serial.print(commandStr);
+  if(commandStr.startsWith("R")){
+    // Rotate
+    int angle = commandStr.substring(1).toInt();
+    Serial.println(angle);
+    if(angle > 1)
+      rotate(angle, false);
+    if(angle < -1)
+      rotate(-angle, true);
+  }
+  else if(commandStr.startsWith("M")){
+    // Move
+    int dist = commandStr.substring(1).toInt();
+    if(dist > 1)
+      moveDistanceInTime(dist, 3, false);
+    if(dist < -1)
+      moveDistanceInTime(-dist,3, true);
+  }
 }

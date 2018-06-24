@@ -20,10 +20,21 @@ void handleRoot() {
 void handleRotate() {
   digitalWrite(BLINK_LED, 1);
   delay(50);
-  Serial1.println(server.arg(0));  
-  Serial.println(server.arg(0));
+  Serial1.println("R" + server.arg(0));  
+  Serial.println("R" + server.arg(0));
  // digitalWrite(TX, server.arg(0).toInt());
   server.send(200, "text/plain", "Rotating " + server.arg(0) + " degs\n");
+  digitalWrite(BLINK_LED, 0);
+}
+
+
+void handleMove() {
+  digitalWrite(BLINK_LED, 1);
+  delay(50);
+  Serial1.println("M" + server.arg(0));  
+  Serial.println("M" + server.arg(0));
+ // digitalWrite(TX, server.arg(0).toInt());
+  server.send(200, "text/plain", "Moving " + server.arg(0) + " cm\n");
   digitalWrite(BLINK_LED, 0);
 }
 
@@ -61,7 +72,7 @@ void setup(void){
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
-  Serial.print("IP address: ");
+  //Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
   if (MDNS.begin("esp8266")) {
@@ -70,6 +81,7 @@ void setup(void){
 
   server.on("/", handleRoot);
   server.on("/rotate", handleRotate);
+  server.on("/move", handleMove);
 
   server.on("/inline", [](){
     server.send(200, "text/plain", "this works as well");
