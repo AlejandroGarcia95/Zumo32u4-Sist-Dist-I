@@ -37,7 +37,7 @@ void setup() {
     }
 
     WiFi.mode(WIFI_STA);
-    WiFiMulti.addAP("SSID", "PASSWORD");
+    WiFiMulti.addAP(SSID_NAME, SSID_PASS);
 
 }
 
@@ -77,13 +77,13 @@ void makeRequestToURI(String reqUri){
 void loop() {
 
     String zumoBtn = Serial.readString();
-    if(zumoBtn == "A")
+    if(zumoBtn.charAt(0) == 'A')
       // Move 5cm forward
       makeRequestToURI(String(SERVER_IP) + String(ENDPOINT_MOVE) + "?d=5");
-    if(zumoBtn == "B")
+    if(zumoBtn.charAt(0) == 'B')
       // Move 5cm backwards
       makeRequestToURI(String(SERVER_IP) + String(ENDPOINT_MOVE) + "?d=-5");
-    if(zumoBtn == "C")
+    if(zumoBtn.charAt(0) == 'C')
       // Rotate 45 degrees
       makeRequestToURI(String(SERVER_IP) + String(ENDPOINT_ROTATE) + "?a=45");
 }
