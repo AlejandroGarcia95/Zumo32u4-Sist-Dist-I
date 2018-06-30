@@ -2,6 +2,7 @@
 #include <Zumo32U4.h>
 
 #include "turnsensor.h"
+#include "zumoLedsDebug.h"
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -86,6 +87,7 @@ void moveDistanceInTime(int distCm, int timeSec, bool reverseDir){
   };
 
   motors.setSpeeds(0, 0);
+  showLedsDebug(true);
 }
 
 /* Rotates the robot angleDeg degrees. If rotClockwise is true, then the
@@ -111,6 +113,7 @@ void rotate(int angleDeg, bool rotClockwise) {
   } while(angle < angleDeg);
   
   motors.setSpeeds(0, 0);
+  showLedsDebug(true);
 }
 
 /* Returns true if an object is found in front of the robot. The value of
@@ -148,28 +151,40 @@ void setup() {
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
   delay(100);
+  setupLedsDebug();
 }
 
 // Main loop
 void loop() {
   String commandStr = "";
-  commandStr = Serial1.readString();
-  Serial.print(commandStr);
-  if(commandStr.startsWith("R")){
-    // Rotate
-    int angle = commandStr.substring(1).toInt();
-    Serial.println(angle);
-    if(angle > 1)
-      rotate(angle, false);
-    if(angle < -1)
-      rotate(-angle, true);
-  }
-  else if(commandStr.startsWith("M")){
-    // Move
-    int dist = commandStr.substring(1).toInt();
-    if(dist > 1)
-      moveDistanceInTime(dist, 3, false);
-    if(dist < -1)
-      moveDistanceInTime(-dist,3, true);
+  if(Serial1.available() > 2) {
+    
+    commandStr = Serial1.readString();
+    Serial.print(commandStr);
+    if(commandStr.startsWith("R")) {
+      // Rotate
+      int angle = commandStr.substring(1).toInt();
+      Serial.println(angle);
+      if(angle > 1)
+        rotate(angle, false);
+      else if(angle < -1)
+        rotate(-angle, true);
+      else
+        showLedsDebug(false);
+    }
+    else if(commandStr.startsWith("M")) {
+      // Move
+      int dist = commandStr.substring(1).toInt();
+      if(dist > 1)
+        moveDistanceInTime(dist, 3, false);
+      else if(dist < -1)
+        moveDistanceInTime(-dist,3, true);
+      else
+        showLedsDebug(false);
+    }
+    else {
+      showLedsDebug(false);
+    }
+    
   }
 }

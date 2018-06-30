@@ -12,10 +12,10 @@
 
 #include <ESP8266HTTPClient.h>
 
-#define SSID_NAME "wifi net name"
-#define SSID_PASS "wifi password"
+#define SSID_NAME "Speedy-Fibra-BF992E"
+#define SSID_PASS "98A896E433FeA5BcF544"
 
-#define SERVER_IP "http://192.168.1.12"
+#define SERVER_IP "http://192.168.1.45:8080"
 
 #define ENDPOINT_ROTATE "/rotate"
 #define ENDPOINT_MOVE "/move"
@@ -43,6 +43,7 @@ void setup() {
 
 void makeRequestToURI(String reqUri){
   // wait for WiFi connection
+  Serial.println(reqUri);
   if((WiFiMulti.run() == WL_CONNECTED)) {
 
       HTTPClient http;
@@ -77,6 +78,7 @@ void makeRequestToURI(String reqUri){
 void loop() {
 
     String zumoBtn = Serial.readString();
+    Serial.println(zumoBtn);
     if(zumoBtn.charAt(0) == 'A')
       // Move 5cm forward
       makeRequestToURI(String(SERVER_IP) + String(ENDPOINT_MOVE) + "?d=5");
