@@ -3,7 +3,7 @@ configuring the L3GD20H gyro, calibrating it, and using it to
 measure how much the robot has turned about its Z axis. */
 
 #include <Wire.h>
-#include "turnsensor.h"
+#include "turnSensor.h"
 
 /* turnAngle is a 32-bit unsigned integer representing the amount
 the robot has turned since the last time turnSensorReset was
