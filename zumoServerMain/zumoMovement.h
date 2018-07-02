@@ -10,7 +10,7 @@ extern L3G gyro;
 
 /* --------------------------------------------------------------------
 Experimentally measured constants. May wanna touch them if you
-don't feel comfortable with your robot performance. 
+don't feel comfortable with your robot's performance. 
 ----------------------------------------------------------------------*/
 
 /* Constants for the moveDistanceInTime function. Basically they convert
