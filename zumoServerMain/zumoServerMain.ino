@@ -68,10 +68,17 @@ void loop() {
 }
 */
 void loop() {
-  if(buttonB.isPressed())
-    detectWithoutEmiting();
+  if(buttonB.isPressed()) {
+    while(1) {
+      if(detectIRPulses())
+        ledYellow(1);
+      else
+        ledYellow(0);
+    }
+  }
   if(buttonA.isPressed()) {
     while(1) {
+      delay(50);
       if(objectIsInFront())
         ledYellow(1);
       else

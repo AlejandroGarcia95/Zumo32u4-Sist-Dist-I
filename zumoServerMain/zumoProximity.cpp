@@ -9,39 +9,45 @@
 void setupProximity() {
   proxSensors.initFrontSensor();
   proxSensors.setPeriod(SENSOR_PERIOD);
-  uint16_t brightLvl[] = {SENSOR_PERIOD - 8};
+  uint16_t brightLvl[] = {SENSOR_DUTY};
   proxSensors.setBrightnessLevels(brightLvl, 1);
   delay(100);
 }
 
-/* Returns true if an object is found in front of the robot. The value of
-SENSOR_THRESHOLD is used to decide whether an object is near enough.*/
+/* Returns true if an object is found in front of the robot.*/
 bool objectIsInFront() {
-  proxSensors.read();
-  uint8_t leftValue = proxSensors.countsFrontWithLeftLeds();
-  uint8_t rightValue = proxSensors.countsFrontWithRightLeds();
+  uint8_t successfulReadings = 0;
+  for(int i = 0; i < TRANSMITIONS_AMOUNT; i++) {
+    proxSensors.read();
+    uint8_t leftValue = proxSensors.countsFrontWithLeftLeds();
+    uint8_t rightValue = proxSensors.countsFrontWithRightLeds();
+    
+    if(leftValue || rightValue)
+      successfulReadings++;
 
-  Serial.print("L: ");
-  Serial.println(leftValue);
-  Serial.print("R: ");
-  Serial.println(rightValue);
-  
-  
-  return ((leftValue >= SENSOR_THRESHOLD) || (rightValue >= SENSOR_THRESHOLD));  
+    delay(TRANSMITION_DELAY);
+  }
+
+  return (successfulReadings >= TRANSMITION_THRESHOLD);
 }
 
+void transmitIRPulses(){
+  objectIsInFront();
+}
 
-
-void detectWithoutEmiting(){
-  while(true){
+bool detectIRPulses(){
+  uint8_t successfulReadings = 0;
+  for(int i = 0; i < DETECTIONS_AMOUNT; i++) {
     proxSensors.pullupsOn();
     proxSensors.lineSensorEmittersOff();
-    bool p = proxSensors.readBasicFront();
-    if(p)
-      ledYellow(1);
-    else
-      ledYellow(0);
+    
+    if(proxSensors.readBasicFront())
+      successfulReadings++;
+
+    delay(DETECTION_DELAY);
   }
+
+  return (successfulReadings >= DETECTION_THRESHOLD);  
 }
 
 
