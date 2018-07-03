@@ -31,7 +31,7 @@ void setup() {
   ledYellow(0);
 }
 
-/*
+
 // Main loop
 void loop() {
   String commandStr = "";
@@ -66,7 +66,9 @@ void loop() {
     
   }
 }
-*/
+
+
+/*
 void loop() {
   if(buttonB.isPressed()) {
     while(1) {
@@ -86,4 +88,4 @@ void loop() {
     }
   }
 }
-
+*/
