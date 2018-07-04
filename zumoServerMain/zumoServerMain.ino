@@ -4,6 +4,7 @@
 #include "zumoMovement.h"
 #include "zumoProximity.h"
 #include "zumoLedsDebug.h"
+#include "zumoToEsp.h"
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -22,10 +23,7 @@ L3G gyro;
 void setup() {
   setupZumoMovement();
   Serial.begin(9600);
-  Serial1.begin(9600);
-  pinMode(0, INPUT_PULLUP);
-  Serial1.flush();
-  Serial1.readString();
+  setupToEsp();
   setupProximity();
   setupLedsDebug();
   ledYellow(0);
@@ -34,37 +32,37 @@ void setup() {
 
 // Main loop
 void loop() {
-  String commandStr = "";
-  if(Serial1.available() > 2) {
-    
-    commandStr = Serial1.readString();
-    Serial.print(commandStr);
-    if(commandStr.startsWith("R")) {
-      // Rotate
-      int angle = commandStr.substring(1).toInt();
-      Serial.println(angle);
-      if(angle > 1)
-        rotate(angle, false);
-      else if(angle < -1)
-        rotate(-angle, true);
-      else
-        showLedsDebug(false);
-    }
-    else if(commandStr.startsWith("M")) {
-      // Move
-      int dist = commandStr.substring(1).toInt();
-      if(dist > 1)
-        moveDistanceInTime(dist, 3, false);
-      else if(dist < -1)
-        moveDistanceInTime(-dist,3, true);
-      else
-        showLedsDebug(false);
-    }
-    else {
+  String msg = "";
+  msg = receiveFromEsp(true);
+  Serial.print(msg);
+  String msgType = getMessageType(msg);
+  Serial.print(msgType);
+  if(msgType == MSG_ROTATE) {
+    // Rotate
+    int angle = getMessagePayload(msg).toInt();
+    Serial.println(angle);
+    if(angle > 1)
+      rotate(angle, false);
+    else if(angle < -1)
+      rotate(-angle, true);
+    else
       showLedsDebug(false);
-    }
-    
   }
+  else if(msgType == MSG_MOVE) {
+    // Move
+    int dist = getMessagePayload(msg).toInt();
+    Serial.println(dist);
+    if(dist > 1)
+      moveDistanceInTime(dist, 3, false);
+    else if(dist < -1)
+      moveDistanceInTime(-dist,3, true);
+    else
+      showLedsDebug(false);
+  }
+  else {
+    showLedsDebug(false);
+  }
+    
 }
 
 

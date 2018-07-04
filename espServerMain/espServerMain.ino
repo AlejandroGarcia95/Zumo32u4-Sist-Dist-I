@@ -4,6 +4,7 @@
 #include <ESP8266mDNS.h>
 
 #include "espLedsDebug.h"
+#include "espToZumo.h"
 
 const char* ssid = "Speedy-Fibra-BF992E";
 const char* password = "98A896E433FeA5BcF544";
@@ -16,16 +17,16 @@ void handleRoot() {
 }
 
 void handleRotate() {
-  Serial1.println("R" + server.arg(0));  
-  Serial.println("R" + server.arg(0));
+  String msg = createMessage(MSG_ROTATE, server.arg(0));
+  sendToZumo(msg);
   server.send(200, "text/plain", "Rotating " + server.arg(0) + " degs\n");
   showLedsDebug(true);
 }
 
 
-void handleMove() {
-  Serial1.println("M" + server.arg(0));  
-  Serial.println("M" + server.arg(0));
+void handleMove() {  
+  String msg = createMessage(MSG_MOVE, server.arg(0));
+  sendToZumo(msg);
   server.send(200, "text/plain", "Moving " + server.arg(0) + " cm\n");
   showLedsDebug(true);
 }
@@ -48,8 +49,7 @@ void handleNotFound(){
 
 void setup(void){
   setupLedsDebug();
-  Serial.begin(9600);
-  Serial1.begin(9600);
+  setupToZumo();
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("");
