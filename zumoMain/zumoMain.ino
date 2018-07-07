@@ -17,6 +17,8 @@ Zumo32U4Encoders encoders;
 Zumo32U4ProximitySensors proxSensors;
 L3G gyro;
 
+unsigned long lastBtnTime;
+
 // ---------------------------- MAIN PROGRAM ----------------------------
 
 // Called only once when robot starts
@@ -26,18 +28,45 @@ void setup() {
   setupToEsp();
   setupProximity();
   setupLedsDebug();
+  lastBtnTime = millis();
   ledYellow(0);
+  showLedsDebug(true);
 }
 
 
 // Main loop
 void loop() {
+  // Send message to ESP if a button was pressed
   String msg = "";
-  msg = receiveFromEsp(true);
-  Serial.print(msg);
+  if((millis() - lastBtnTime) > 2000) {
+    if(buttonA.isPressed()) {
+      msg = createMessage(MSG_MOVE, String("5"));
+      sendToEsp(msg);
+      lastBtnTime = millis();
+      Serial.println(msg);
+    }
+    else if(buttonB.isPressed()) {
+      msg = createMessage(MSG_MOVE, String("-5"));
+      sendToEsp(msg);
+      lastBtnTime = millis();
+      Serial.println(msg);
+    }
+    else if(buttonC.isPressed()) {
+      msg = createMessage(MSG_ROTATE, String("45"));
+      sendToEsp(msg);
+      lastBtnTime = millis();
+      Serial.println(msg);
+    }
+
+  }
+
+  // Checks if a msg was sent from ESP and executes it
+  msg = receiveFromEsp(false);
+  //Serial.println(msg);
   String msgType = getMessageType(msg);
-  Serial.print(msgType);
-  if(msgType == MSG_ROTATE) {
+  if(msgType == MSG_NONE)
+    return;  
+  else if(msgType == MSG_ROTATE) {
     // Rotate
     int angle = getMessagePayload(msg).toInt();
     Serial.println(angle);

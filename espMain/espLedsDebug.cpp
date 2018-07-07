@@ -11,6 +11,8 @@ void setupLedsDebug() {
 	digitalWrite(LED_RED, 0);
 }
 
+// Blinks the green or red led of the ESP board
+// (green if success is true, red if false).
 void showLedsDebug(bool success) {
 	if(success) {
 		digitalWrite(LED_GREEN, 1);
