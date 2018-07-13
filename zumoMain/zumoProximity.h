@@ -45,7 +45,7 @@ each one. This function returns true if at least TRANSMISSION_THRESHOLD of
 them bounced back to the proximity sensors.*/
 bool objectIsInFront();
 
-/* Behaces exactly the same as objectIsInFront, except that does not return
+/* Behaves exactly the same as objectIsInFront, except that does not return
 true or false. You should call this function only if you want to turn on the
 IR emiters. May wanna deprecate this on the near future.*/
 void transmitIRPulses();

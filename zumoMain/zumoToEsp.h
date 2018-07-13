@@ -25,6 +25,9 @@ const String MSG_DEBUG = "DEBUG";
 const String MSG_MOVE = "MOVE";
 const String MSG_ROTATE = "ROTATE";
 
+// Commands to interface with MQTT
+const String MSG_ICU = "ICU";
+
 /*------------------------------------------------------
       Functions
 ------------------------------------------------------*/

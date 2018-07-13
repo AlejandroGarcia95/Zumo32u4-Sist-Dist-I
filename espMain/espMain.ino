@@ -6,19 +6,19 @@
 
 // ---------------- WIFI CONNECTION CONSTANTS ----------------
 
-#define WIFI_NETS 2 // Change when adding more networks
+#define WIFI_NETS 3 // Change when adding more networks
 
 #define CONNECTION_ATTEMPTS 8
 #define CONNECTION_DELAY 900
 
-#define MQTT_SERVER_IP "192.168.1.50"
+#define MQTT_SERVER_IP "192.168.0.7"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"HUAWEI P9 lite", "Speedy-Fibra-BF992E", "Add your WiFi net here"};
-const char* password[] = {"ipv6isgood", "98A896E433FeA5BcF544", "And its password here"};
+const char* ssid[] = {"HUAWEI P9 lite", "Speedy-Fibra-BF992E", "Telecentro-40a8", "Add your WiFi net here"};
+const char* password[] = {"ipv6isgood", "98A896E433FeA5BcF544", "DDZ2WNHZ2NKN", "And its password here"};
 
-const char* myId = "ESP8266_1";
-const char* otherId = "ESP8266_2";
+const char* leaderId = "ESP8266_1";
+const char* myId = "ESP8266_2";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -67,7 +67,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(myId)) {
+    if (client.connect(myId, "esp8266_1", "1234")) {
       Serial.println("connected");
       // ... and resubscribe
       client.subscribe(myId);
@@ -93,7 +93,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // Now retrieve message type and act accordingly
   String msgType = getMessageType(msg);
   
-  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
+  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE) || (msgType == MSG_ICU)) {
     sendToZumo(msg);
     showLedsDebug(true);
   }
@@ -134,7 +134,7 @@ void loop(void){
   else if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
     char tmpBuffer[50] = {0};
     msg.toCharArray(tmpBuffer, msg.length() + 1);
-    client.publish(otherId, tmpBuffer);
+    client.publish(leaderId, tmpBuffer);
     showLedsDebug(true);
   }
   else if(msgType == MSG_DEBUG)
