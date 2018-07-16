@@ -14,11 +14,10 @@
 #define MQTT_SERVER_IP "192.168.1.50"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"HUAWEI P9 lite", "Speedy-Fibra-BF992E", "Add your WiFi net here"};
-const char* password[] = {"ipv6isgood", "98A896E433FeA5BcF544", "And its password here"};
+const char* ssid[] = {"Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
+const char* password[] = {"98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
 
-const char* myId = "ESP8266_1";
-const char* otherId = "ESP8266_2";
+const char espId[] = "Mongo";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -67,16 +66,16 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(myId)) {
+    if (client.connect(espId)) {
       Serial.println("connected");
       // ... and resubscribe
-      client.subscribe(myId);
+      client.subscribe(espId);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
+      Serial.println(" try again in 2 seconds");
       // Wait 5 seconds before retrying
-      delay(5000);
+      delay(2000);
     }
   }
 }
@@ -129,12 +128,24 @@ void loop(void){
   // Receives a message from zumo and publishes it
   String msg = receiveFromZumo(false);
   String msgType = getMessageType(msg);
+  String msgTopic = getMessageTopic(msg);
   if(msgType == MSG_NONE)
     return;
-  else if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
-    char tmpBuffer[50] = {0};
-    msg.toCharArray(tmpBuffer, msg.length() + 1);
-    client.publish(otherId, tmpBuffer);
+    
+  //Serial.println("Msg was: " + msgType + " " + getMessagePayload(msg) + " " + msgTopic + ".");
+  
+  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
+    char msgBuffer[50] = {0};
+    char topicBuffer[20] = {0};
+    msg.toCharArray(msgBuffer, msg.length() + 1);
+    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    client.publish(topicBuffer, msgBuffer);
+    showLedsDebug(true);
+  }
+  else if(msgType == MSG_SUB) {
+    char topicBuffer[20] = {0};
+    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    client.subscribe(topicBuffer);
     showLedsDebug(true);
   }
   else if(msgType == MSG_DEBUG)
