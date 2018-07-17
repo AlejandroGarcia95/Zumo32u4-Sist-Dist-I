@@ -11,6 +11,8 @@
 int selfID = 2;
 String selfIDString = String("2");
 
+const String MY_TOPIC = "Mongo";
+const String OTHER_TOPIC = "Cassandra";
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -25,6 +27,12 @@ L3G gyro;
 
 unsigned long lastBtnTime;
 
+void subscribeToSelfTopic(){
+  String msg = createMessage(MSG_SUB, "", MY_TOPIC);
+  sendToEsp(msg);
+  Serial.println(msg);
+}
+
 // ---------------------------- MAIN PROGRAM ----------------------------
 
 // Called only once when robot starts
@@ -34,8 +42,9 @@ void setup() {
   setupToEsp();
   setupProximity();
   setupLedsDebug();
-  lastBtnTime = millis();
+  subscribeToSelfTopic();
   ledYellow(0);
+  lastBtnTime = millis();
   showLedsDebug(true);
 }
 
@@ -187,19 +196,19 @@ void loop_old() {
   String msg = "";
   if((millis() - lastBtnTime) > 2000) {
     if(buttonA.isPressed()) {
-      msg = createMessage(MSG_MOVE, String("5"));
+      msg = createMessage(MSG_MOVE, String("5"), OTHER_TOPIC);
       sendToEsp(msg);
       lastBtnTime = millis();
       Serial.println(msg);
     }
     else if(buttonB.isPressed()) {
-      msg = createMessage(MSG_MOVE, String("-5"));
+      msg = createMessage(MSG_MOVE, String("-5"), OTHER_TOPIC);
       sendToEsp(msg);
       lastBtnTime = millis();
       Serial.println(msg);
     }
     else if(buttonC.isPressed()) {
-      msg = createMessage(MSG_ROTATE, String("45"));
+      msg = createMessage(MSG_ROTATE, String("45"), OTHER_TOPIC);
       sendToEsp(msg);
       lastBtnTime = millis();
       Serial.println(msg);

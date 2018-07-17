@@ -5,7 +5,7 @@
 
 /* Separators for our weirdly formatted messages.
 All valid messages have the format:
-MSG_HEADER + MsgType + MSG_SEP + Payload + MSG_FOOTER
+MSG_HEADER + MsgType + MSG_SEP + Payload + MSG_FOOTER + Topic
 where + means string concatenation.*/
 
 #define MSG_HEADER "@"
@@ -20,6 +20,9 @@ where + means string concatenation.*/
 const String MSG_NONE = "NONE";
 const String MSG_ERROR = "ERROR";
 const String MSG_DEBUG = "DEBUG";
+
+// MQTT commands
+const String MSG_SUB = "SUBS";
 
 // Commands from Esp to Zumo
 const String MSG_MOVE = "MOVE";
@@ -36,9 +39,9 @@ const String MSG_PFH = "PFH"; // Prepare For Handshake
 // Must be called inside setup
 void setupToEsp();
 
-/* Creates and returns a message with the given type and
-payload as String.*/
-String createMessage(String msgType, String payload);
+/* Creates and returns a message with the given type, payload
+and topic as String.*/
+String createMessage(String msgType, String payload, String topic);
 
 /* Retrieves the message type field from the given message.
 If the message has an incorrect format, returns MSG_NONE.*/
@@ -47,6 +50,10 @@ String getMessageType(String msg);
 /* Retrieves the message payload field from the given message.
 If msg has an incorrect format, returns an empty string.*/
 String getMessagePayload(String msg);
+
+/* Retrieves the message topic field from the given message.
+If msg has an incorrect format, returns an empty string.*/
+String getMessageTopic(String msg);
 
 /* Sends via Serial1 the given message to the ESP. Note 
 this function DOES NOT check the message format.*/
