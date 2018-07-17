@@ -14,10 +14,10 @@
 #define MQTT_SERVER_IP "192.168.0.7"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"HUAWEI P9 lite", "Speedy-Fibra-BF992E", "Telecentro-40a8", "Add your WiFi net here"};
-const char* password[] = {"ipv6isgood", "98A896E433FeA5BcF544", "DDZ2WNHZ2NKN", "And its password here"};
+const char* ssid[] = {"Telecentro-40a8", "HUAWEI P9 lite", "Speedy-Fibra-BF992E","Add your WiFi net here"};
+const char* password[] = {"DDZ2WNHZ2NKN", "ipv6isgood", "98A896E433FeA5BcF544", "And its password here"};
 
-const char espId[] = "Mongo";
+const char espId[] = "Neo";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -70,6 +70,7 @@ void reconnect() {
       Serial.println("connected");
       // ... and resubscribe
       client.subscribe(espId);
+      client.publish("debug", "Hello from ESP!");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -89,20 +90,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
     tmpBuffer[i] = (char) payload[i]; 
   String msg  = tmpBuffer;
   
-  // Now retrieve message type and act accordingly
+  // Now retrieve message type
   String msgType = getMessageType(msg);
-  
-  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE) || (msgType == MSG_ICU)) {
+
+  if(msgType == MSG_NONE){
+    showLedsDebug(false);
+  }
+  else {
     sendToZumo(msg);
     showLedsDebug(true);
   }
-  else if(msgType == MSG_DEBUG)
-    Serial.println(msg);
-  else {
-    Serial.println(msg);
-    showLedsDebug(false);
-  }
-  
 }
 
 
@@ -129,29 +126,25 @@ void loop(void){
   String msg = receiveFromZumo(false);
   String msgType = getMessageType(msg);
   String msgTopic = getMessageTopic(msg);
-  if(msgType == MSG_NONE)
-    return;
-  //Serial.println("Msg was: " + msgType + " " + getMessagePayload(msg) + " " + msgTopic + ".");
-  
-  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
-    char msgBuffer[50] = {0};
-    char topicBuffer[20] = {0};
-    msg.toCharArray(msgBuffer, msg.length() + 1);
-    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
-    client.publish(topicBuffer, msgBuffer);
-    showLedsDebug(true);
-  }
-  else if(msgType == MSG_SUB) {
-    char topicBuffer[20] = {0};
-    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
-    client.subscribe(topicBuffer);
-    showLedsDebug(true);
-  }
-  else if(msgType == MSG_DEBUG)
-    Serial.println(msg);
-  else {
-    Serial.println(msg);
+  if(msgType == MSG_NONE) {
+    // Should not happen
     showLedsDebug(false);
   }
-  
+  else {
+    Serial.println("Msg received is: " + msgType + " " + getMessagePayload(msg) + " " + msgTopic + ".");
+    if(msgType == MSG_SUB) {
+      char topicBuffer[20] = {0};
+      msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+      client.subscribe(topicBuffer);
+      showLedsDebug(true);
+    }  
+    else {
+      char msgBuffer[50] = {0};
+      char topicBuffer[20] = {0};
+      msg.toCharArray(msgBuffer, msg.length() + 1);
+      msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }
+  }
 }

@@ -8,11 +8,13 @@
 
 /* Global IDs for our protocols */
 #define HANDSHAKE_NWAYS 2
-int selfID = 2;
-String selfIDString = String("2");
 
-const String MY_TOPIC = "Mongo";
-const String OTHER_TOPIC = "Cassandra";
+const int myNumber = 2;
+const String ROBOTS[] = {"Mongo", "Cassandra", "Maria", "Neo"};
+const String LOST_ONES_TOPIC = "lost";
+
+#define ID_TO_NAME(id) (ROBOTS[id])
+#define SAY(msg) debugMessage(ID_TO_NAME(myNumber) + " says:" + msg)
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -28,9 +30,9 @@ L3G gyro;
 unsigned long lastBtnTime;
 
 void subscribeToSelfTopic(){
-  String msg = createMessage(MSG_SUB, "", MY_TOPIC);
+  String msg = createMessage(MSG_SUB, "", ID_TO_NAME(myNumber));
   sendToEsp(msg);
-  Serial.println(msg);
+  SAY(msg);
 }
 
 // ---------------------------- MAIN PROGRAM ----------------------------
@@ -57,42 +59,19 @@ void setup() {
  * and await for a ACK and a order to start a handshake.
  */
 void idle() {
-  Serial.println("Entering IDLE state\n");
-  while(!objectIsInFront()) {
-    delay(1000);
+  sendToEsp(createMessage(MSG_SUB, "", LOST_ONES_TOPIC));
+  SAY("Entering IDLE state");
+
+  while(true) {
+    delay(200);
+    String msg = receiveFromEsp(true);
+    if (getMessageTopic(msg) == LOST_ONES_TOPIC && getMessageType(msg) == MSG_ICU) {
+      break;
+    }
   }
-  // Found something, send message and turn led to indicate!
-  String msg = "";
-  msg = createMessage(MSG_ICU, selfIDString);
-  sendToEsp(msg);
+
+  SAY("Received message from lost_ones");
   ledYellow(1);
-
-  // Now wait for response
-  wait_hs();
-}
-
-/*
- * The robot freezes waiting for a message from the Leader, to
- * start a new connection. If that message takes too much time
- * to arrive (or is never sent) the robot will re-enter in idle 
- * mode. Alternativelly, if the message is a rejection to start
- * handshake (e.g. because two lost robots have detected the leader 
- * at the same time) the robot will also re-enter idle state 
- * after a small delay.
- */
-void wait_hs() {
-  Serial.println("Entering WAIT_HS state\n");
-  // Expect message from leader to start handshake
-  String msg = "";
-  msg = receiveFromEsp(true);
-  Serial.println(msg);
-
-  // Idicate that a message have been read with leds and re-enter idle state
-  ledYellow(0);
-  ledGreen(1);
-  delay(2000);
-  ledGreen(0);
-  idle();
 }
 
 
@@ -104,29 +83,23 @@ void wait_hs() {
  * Lost robot that may have seen it.
  */
 void searching() {
-  String msg = "";
+  SAY("I am the leader");
+  
   bool found = false;
   while(!found) {
-    delay(2000);
-    moveDistanceInTime(20, 3, false);
+    delay(1000);
+    moveDistanceInTime(10, 3, false);
 
-    delay(5000);
-    // Expect message from lost to start handshake
-    msg = receiveFromEsp(false);
-    Serial.println(msg);
-    String msgType = getMessageType(msg); 
-    if(msgType == MSG_ICU) {
-      Serial.println("Match!\n");
-      found = true; 
-    }
+    if(objectIsInFront()) {
+      found = true;
+    }  
   }
-
-  // Answer message (Payload of msg contains Lost robot ID)
-  msg = createMessage(MSG_PFH, getMessagePayload(msg)));
-  sendToEsp(msg);
   
-  // Wait and enter into hadnshake rotation
-  idle();
+  // Found something, send message and turn led to indicate
+  SAY("I see something");
+  String msg = createMessage(MSG_ICU, "", LOST_ONES_TOPIC);
+  sendToEsp(msg);
+  ledYellow(1);
 }
 
 /*
@@ -172,103 +145,15 @@ void adopt_follower() {
 // Press A to become lost, B to become Leader
 void loop() {
   while(true) {
+    SAY("Waiting for button");
     delay(1000);
     if(buttonA.isPressed()) {
       // I'm idle!
       idle();
     } else if (buttonB.isPressed()) {
-      searching();  
+      searching();
     }
   }
 }
 
 
-
-
-
-///-----------------------------
-///-----------------------------
-///-----------------------------
-///-----------------------------
-// Main loop
-void loop_old() {
-  // Send message to ESP if a button was pressed
-  String msg = "";
-  if((millis() - lastBtnTime) > 2000) {
-    if(buttonA.isPressed()) {
-      msg = createMessage(MSG_MOVE, String("5"), OTHER_TOPIC);
-      sendToEsp(msg);
-      lastBtnTime = millis();
-      Serial.println(msg);
-    }
-    else if(buttonB.isPressed()) {
-      msg = createMessage(MSG_MOVE, String("-5"), OTHER_TOPIC);
-      sendToEsp(msg);
-      lastBtnTime = millis();
-      Serial.println(msg);
-    }
-    else if(buttonC.isPressed()) {
-      msg = createMessage(MSG_ROTATE, String("45"), OTHER_TOPIC);
-      sendToEsp(msg);
-      lastBtnTime = millis();
-      Serial.println(msg);
-    }
-
-  }
-
-  // Checks if a msg was sent from ESP and executes it
-  msg = receiveFromEsp(false);
-  //Serial.println(msg);
-  String msgType = getMessageType(msg);
-  if(msgType == MSG_NONE)
-    return;  
-  else if(msgType == MSG_ROTATE) {
-    // Rotate
-    int angle = getMessagePayload(msg).toInt();
-    Serial.println(angle);
-    if(angle > 1)
-      rotate(angle, false);
-    else if(angle < -1)
-      rotate(-angle, true);
-    else
-      showLedsDebug(false);
-  }
-  else if(msgType == MSG_MOVE) {
-    // Move
-    int dist = getMessagePayload(msg).toInt();
-    Serial.println(dist);
-    if(dist > 1)
-      moveDistanceInTime(dist, 3, false);
-    else if(dist < -1)
-      moveDistanceInTime(-dist,3, true);
-    else
-      showLedsDebug(false);
-  }
-  else {
-    showLedsDebug(false);
-  }
-    
-}
-
-
-/*
-void loop() {
-  if(buttonB.isPressed()) {
-    while(1) {
-      if(detectIRPulses())
-        ledYellow(1);
-      else
-        ledYellow(0);
-    }
-  }
-  if(buttonA.isPressed()) {
-    while(1) {
-      delay(50);
-      if(objectIsInFront())
-        ledYellow(1);
-      else
-        ledYellow(0);
-    }
-  }
-}
-*/

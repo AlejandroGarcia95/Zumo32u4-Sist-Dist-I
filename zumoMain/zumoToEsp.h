@@ -12,6 +12,8 @@ where + means string concatenation.*/
 #define MSG_SEP "$"
 #define MSG_FOOTER "#"
 
+const String DEBUG_TOPIC = "debug";
+
 /*------------------------------------------------------
  		Message types
 ------------------------------------------------------*/
@@ -66,3 +68,8 @@ boolean isBlocking is used for this. Returns the received message,
 or an empty payload MSG_NONE string if isBlocking was false and 
 there was no message available to retrieve.*/
 String receiveFromEsp(bool isBlocking);
+
+/* Sends a string to debug topic. */
+void debugMessage(String payload);
+
+

@@ -82,3 +82,9 @@ String receiveFromEsp(bool isBlocking){
 }
 
 
+/* Sends a string to debug topic. */
+void debugMessage(String payload) {
+  String msg = createMessage(MSG_DEBUG, payload, DEBUG_TOPIC);
+  sendToEsp(msg);
+}
+
