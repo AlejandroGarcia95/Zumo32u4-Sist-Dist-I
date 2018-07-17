@@ -26,7 +26,8 @@ const String MSG_MOVE = "MOVE";
 const String MSG_ROTATE = "ROTATE";
 
 // Commands to interface with MQTT
-const String MSG_ICU = "ICU";
+const String MSG_ICU = "ICU"; // I C(see) U(you) message, payload is robotID
+const String MSG_PFH = "PFH"; // Prepare For Handshake
 
 /*------------------------------------------------------
       Functions

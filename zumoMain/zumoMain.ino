@@ -7,8 +7,10 @@
 #include "zumoToEsp.h"
 
 /* Global IDs for our protocols */
+#define HANDSHAKE_NWAYS 2
 int selfID = 2;
 String selfIDString = String("2");
+
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -111,13 +113,52 @@ void searching() {
   }
 
   // Answer message (Payload of msg contains Lost robot ID)
-  msg = createMessage(MSG_DEBUG, String("Leader says hi!"));
+  msg = createMessage(MSG_PFH, getMessagePayload(msg)));
   sendToEsp(msg);
   
-  // Enter idle mode
+  // Wait and enter into hadnshake rotation
   idle();
 }
 
+/*
+ * A robot in handshake rotate will start rotating  with its 
+ * proximity sensors on but without emiting pulses. That is, 
+ * it will only receive.
+ * It has three stages: 1) rotate anti-cw until the sensors
+ * sense notihng. 2) rotate cw until sensors sense something,
+ * 3) start recording the angle and rotate cw until the sensors
+ * sense nothing.
+ * Take de measured angle alpha and rotate alpha/2 anti-cw.
+ * 
+ * The parameter indicates the round of the handshake. If it is
+ * over the constant HANDSHAKE_NWAYS the robot will enter in state
+ * follower() or adopt_follower().
+ * 
+ * Else the robot will enter in handsahke_still() state.
+ */
+void handshake_rotate(int nways) {
+
+
+}
+
+/*
+ * A robot in handshake still will hold its position and turn its
+ * LED emmiters on. However it will ignore the readings and instead
+ * let the other robot do the work
+ */
+void handshake_still() {
+  
+}
+
+void follower() {
+  // TODO: fill this
+  idle();
+}
+
+void adopt_follower() {
+  // TODO: fill this
+  idle();
+}
 
 // Press A to become lost, B to become Leader
 void loop() {
@@ -133,6 +174,13 @@ void loop() {
 }
 
 
+
+
+
+///-----------------------------
+///-----------------------------
+///-----------------------------
+///-----------------------------
 // Main loop
 void loop_old() {
   // Send message to ESP if a button was pressed
