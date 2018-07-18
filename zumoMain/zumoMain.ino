@@ -64,7 +64,7 @@ void idle() {
 
   while(true) {
     delay(200);
-    String msg = receiveFromEsp(true);
+    String msg = receiveFromEsp(false);
     if (getMessageTopic(msg) == LOST_ONES_TOPIC && getMessageType(msg) == MSG_ICU) {
       break;
     }
@@ -145,7 +145,8 @@ void adopt_follower() {
 // Press A to become lost, B to become Leader
 void loop() {
   while(true) {
-    SAY("Waiting for button");
+    Serial.println("\nWaiting for button");
+    //SAY("Waiting for button");
     delay(1000);
     if(buttonA.isPressed()) {
       // I'm idle!

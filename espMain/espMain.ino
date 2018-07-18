@@ -88,7 +88,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   char tmpBuffer[50] = {0};
   for(int i = 0; i < length; i++)
     tmpBuffer[i] = (char) payload[i]; 
-  String msg  = tmpBuffer;
+  String msg = tmpBuffer;
   
   // Now retrieve message type
   String msgType = getMessageType(msg);
@@ -126,12 +126,13 @@ void loop(void){
   String msg = receiveFromZumo(false);
   String msgType = getMessageType(msg);
   String msgTopic = getMessageTopic(msg);
+  String msgPayload = getMessagePayload(msg);
   if(msgType == MSG_NONE) {
     // Should not happen
     showLedsDebug(false);
   }
   else {
-    Serial.println("Msg received is: " + msgType + " " + getMessagePayload(msg) + " " + msgTopic + ".");
+    Serial.println("Msg received is: [" + msgType + " " + msgPayload + " " + msgTopic + "]");
     if(msgType == MSG_SUB) {
       char topicBuffer[20] = {0};
       msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
@@ -141,7 +142,11 @@ void loop(void){
     else {
       char msgBuffer[50] = {0};
       char topicBuffer[20] = {0};
-      msg.toCharArray(msgBuffer, msg.length() + 1);
+      if (msgTopic == "debug") {
+        msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
+      } else {
+        msg.toCharArray(msgBuffer, msg.length() + 1);
+      }
       msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
       client.publish(topicBuffer, msgBuffer);
       showLedsDebug(true);
