@@ -11,11 +11,11 @@
 #define CONNECTION_ATTEMPTS 8
 #define CONNECTION_DELAY 900
 
-#define MQTT_SERVER_IP "192.168.1.50"
+#define MQTT_SERVER_IP "192.168.0.7"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
-const char* password[] = {"98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
+const char* ssid[] = {"Telecentro-40a8", "Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
+const char* password[] = {"DDZ2WNHZ2NKN", "98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
 
 const char espId[] = "Mongo";
 
@@ -66,7 +66,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(espId)) {
+    if (client.connect(espId, "esp8266_1", "1234")) {
       Serial.println("connected");
       // ... and resubscribe
       client.subscribe(espId);
