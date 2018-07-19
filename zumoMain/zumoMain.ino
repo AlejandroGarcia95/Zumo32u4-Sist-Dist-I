@@ -9,12 +9,12 @@
 /* Global IDs for our protocols */
 #define HANDSHAKE_NWAYS 2
 
-const int myNumber = 2;
-const String ROBOTS[] = {"Mongo", "Cassandra", "Maria", "Neo"};
-const String LOST_ONES_TOPIC = "lost";
+const int myRobotId = 1;
+const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
+const String LOST_TOPIC = "lost";
 
-#define ID_TO_NAME(id) (ROBOTS[id])
-#define SAY(msg) debugMessage(ID_TO_NAME(myNumber) + " says:" + msg)
+#define ROBOT_ID_TO_NAME(id) (ROBOT_NAMES[id])
+#define SAY(msg) sendDebugMessage(ROBOT_ID_TO_NAME(myRobotId) + ": " + msg)
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -30,9 +30,8 @@ L3G gyro;
 unsigned long lastBtnTime;
 
 void subscribeToSelfTopic(){
-  String msg = createMessage(MSG_SUB, "", ID_TO_NAME(myNumber));
+  String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
   sendToEsp(msg);
-  SAY(msg);
 }
 
 // ---------------------------- MAIN PROGRAM ----------------------------
@@ -48,6 +47,7 @@ void setup() {
   ledYellow(0);
   lastBtnTime = millis();
   showLedsDebug(true);
+  Serial.println("\nWaiting for button");
 }
 
 
@@ -59,18 +59,21 @@ void setup() {
  * and await for a ACK and a order to start a handshake.
  */
 void idle() {
-  sendToEsp(createMessage(MSG_SUB, "", LOST_ONES_TOPIC));
+  String msg = createMessage(MSG_SUB, "", LOST_TOPIC);
+  Serial.println(msg);
+  sendToEsp(msg);
   SAY("Entering IDLE state");
 
   while(true) {
-    delay(200);
-    String msg = receiveFromEsp(false);
-    if (getMessageTopic(msg) == LOST_ONES_TOPIC && getMessageType(msg) == MSG_ICU) {
+    delay(2000);
+    msg = receiveFromEsp();
+    Serial.println(msg);
+    if(getMessageType(msg) == MSG_ICU) {
       break;
     }
   }
 
-  SAY("Received message from lost_ones");
+  SAY("Hey, you found me!");
   ledYellow(1);
 }
 
@@ -97,7 +100,7 @@ void searching() {
   
   // Found something, send message and turn led to indicate
   SAY("I see something");
-  String msg = createMessage(MSG_ICU, "", LOST_ONES_TOPIC);
+  String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
   sendToEsp(msg);
   ledYellow(1);
 }
@@ -144,17 +147,13 @@ void adopt_follower() {
 
 // Press A to become lost, B to become Leader
 void loop() {
-  while(true) {
-    Serial.println("\nWaiting for button");
-    //SAY("Waiting for button");
-    delay(1000);
-    if(buttonA.isPressed()) {
-      // I'm idle!
-      idle();
-    } else if (buttonB.isPressed()) {
-      searching();
-    }
+  if(buttonA.isPressed()) {
+    // I'm idle!
+    idle();
+  } else if (buttonB.isPressed()) {
+    searching();
   }
+
 }
 
 

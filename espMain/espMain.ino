@@ -11,13 +11,14 @@
 #define CONNECTION_ATTEMPTS 8
 #define CONNECTION_DELAY 900
 
-#define MQTT_SERVER_IP "192.168.0.7"
+//#define MQTT_SERVER_IP "192.168.0.7"
+#define MQTT_SERVER_IP "192.168.1.50"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"Telecentro-40a8", "HUAWEI P9 lite", "Speedy-Fibra-BF992E","Add your WiFi net here"};
-const char* password[] = {"DDZ2WNHZ2NKN", "ipv6isgood", "98A896E433FeA5BcF544", "And its password here"};
+const char* ssid[] = {"Speedy-Fibra-BF992E", "Telecentro-40a8", "HUAWEI P9 lite","Add your WiFi net here"};
+const char* password[] = {"98A896E433FeA5BcF544", "DDZ2WNHZ2NKN", "ipv6isgood", "And its password here"};
 
-const char espId[] = "Neo";
+const char espId[] = "Cassandra";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -29,8 +30,7 @@ serial if connection was successful or not, showing IP address.*/
 void setupWifi() {
   int attempts = 0;
   for(int i = 0; i < WIFI_NETS; i++){
-    Serial.print("\nTrying to connect to ");
-    Serial.println(&ssid[i][0]);
+    serialPrint("\nTrying to connect to " + String(&ssid[i][0]));
   
     WiFi.begin(&ssid[i][0], &password[i][0]);
 
@@ -38,23 +38,22 @@ void setupWifi() {
       delay(CONNECTION_DELAY);
       attempts++;
       if(attempts == CONNECTION_ATTEMPTS) {
-        Serial.println("Connection attempt failed");
+        serialPrint("Connection attempt failed");
         attempts = 0;
         break;
       }
     }
 
     if(WiFi.status() == WL_CONNECTED) {
-      Serial.println("\nWiFi connected");
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
+     serialPrint("\nWiFi connected");
+      serialPrint("IP address: " + String(WiFi.localIP()));
       return;
     }
       
   }
 
   // If here, we could connect to no network
-  Serial.println("\nWiFi has never conected!");
+  serialPrint("\nWiFi has never conected!");
   showLedsDebug(false);
 }
 
@@ -64,18 +63,16 @@ connection went lost. Attempts to reconnect after
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    serialPrint("Attempting MQTT connection");
     // Attempt to connect
     if (client.connect(espId, "esp8266_1", "1234")) {
-      Serial.println("connected");
+      serialPrint("Connected!");
       // ... and resubscribe
       client.subscribe(espId);
-      client.publish("debug", "Hello from ESP!");
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 2 seconds");
-      // Wait 5 seconds before retrying
+      serialPrint("Failed! rc= " + String(client.state()));
+      serialPrint("Trying again in 2 seconds");
+      // Wait 2 seconds before retrying
       delay(2000);
     }
   }
@@ -117,39 +114,44 @@ void setup(void){
 
 void loop(void){
   // MQTT stuff handling
-  if (!client.connected()) {
+  if (!client.connected()){
     reconnect();
   }
   client.loop();
 
   // Receives a message from zumo and publishes it
-  String msg = receiveFromZumo(false);
+  String msg = receiveFromZumo();
   String msgType = getMessageType(msg);
   String msgTopic = getMessageTopic(msg);
   String msgPayload = getMessagePayload(msg);
-  if(msgType == MSG_NONE) {
-    // Should not happen
+  if(msgType == MSG_NONE)
+    // Happens only on error
     showLedsDebug(false);
-  }
   else {
-    Serial.println("Msg received is: [" + msgType + " " + msgPayload + " " + msgTopic + "]");
+    serialPrint("Msg received: [" + msgType + "," + msgPayload + "," + msgTopic + "]");
+    // Get topic for publishing or subscribing
+    char topicBuffer[20] = {0};
+    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    
+    // Switch on msgType
+    char msgBuffer[50] = {0};
     if(msgType == MSG_SUB) {
-      char topicBuffer[20] = {0};
-      msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
       client.subscribe(topicBuffer);
       showLedsDebug(true);
     }  
-    else {
-      char msgBuffer[50] = {0};
-      char topicBuffer[20] = {0};
-      if (msgTopic == "debug") {
-        msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
-      } else {
-        msg.toCharArray(msgBuffer, msg.length() + 1);
-      }
-      msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    else if(msgType == MSG_DEBUG){
+      msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
       client.publish(topicBuffer, msgBuffer);
       showLedsDebug(true);
     }
+    else{
+      msg.toCharArray(msgBuffer, msg.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }   
+
   }
+
+  // Save some battery
+  delay(100);
 }
