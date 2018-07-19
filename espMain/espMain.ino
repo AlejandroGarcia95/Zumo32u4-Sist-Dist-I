@@ -18,7 +18,7 @@
 const char* ssid[] = {"Speedy-Fibra-BF992E", "Telecentro-40a8", "HUAWEI P9 lite","Add your WiFi net here"};
 const char* password[] = {"98A896E433FeA5BcF544", "DDZ2WNHZ2NKN", "ipv6isgood", "And its password here"};
 
-const char espId[] = "Cassandra";
+const char espId[] = "Mongo";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -109,6 +109,9 @@ void setup(void){
   client.setServer(MQTT_SERVER_IP, MQTT_SERVER_PORT);
   client.setCallback(callback);
   delay(100);
+  reconnect();
+  // Tell the Zumo this ESP is ready
+  sendToZumo(createMessage(MSG_ERDY, "", String(espId)));
   showLedsDebug(true);
 }
 

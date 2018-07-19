@@ -6,15 +6,23 @@
 #include "zumoLedsDebug.h"
 #include "zumoToEsp.h"
 
-/* Global IDs for our protocols */
-#define HANDSHAKE_NWAYS 2
+// Special topics used for our protocols
 
+const String LOST_TOPIC = "lost";
+const String FOLLOWERS_TOPIC = "followers";
+const String LEADER_TOPIC = "leader";
+
+// Global IDs for our protocols */
 const int myRobotId = 1;
 const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
-const String LOST_TOPIC = "lost";
+
+// Fancy macros
 
 #define ROBOT_ID_TO_NAME(id) (ROBOT_NAMES[id])
 #define SAY(msg) sendDebugMessage(ROBOT_ID_TO_NAME(myRobotId) + ": " + msg)
+
+#define SUBSCRIBE_TO(topic) (sendToEsp(createMessage(MSG_SUB, "", topic)))
+#define UNSUBSCRIBE_FROM(topic) (sendToEsp(createMessage(MSG_UNSUB, "", topic)))
 
 /* Global variables that magically map themselves with the robot's
 true hardware stuff (think of them as singleton objects). */
@@ -27,29 +35,14 @@ Zumo32U4Encoders encoders;
 Zumo32U4ProximitySensors proxSensors;
 L3G gyro;
 
-unsigned long lastBtnTime;
 
+// Shouldn't be needed, but just in case
 void subscribeToSelfTopic(){
   String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
   sendToEsp(msg);
 }
 
-// ---------------------------- MAIN PROGRAM ----------------------------
-
-// Called only once when robot starts
-void setup() {
-  setupZumoMovement();
-  Serial.begin(9600);
-  setupToEsp();
-  setupProximity();
-  setupLedsDebug();
-  subscribeToSelfTopic();
-  ledYellow(0);
-  lastBtnTime = millis();
-  showLedsDebug(true);
-  Serial.println("\nWaiting for button");
-}
-
+bool imLeader = false;
 
 /* Function states for LOST robots */
 
@@ -59,14 +52,12 @@ void setup() {
  * and await for a ACK and a order to start a handshake.
  */
 void idle() {
-  String msg = createMessage(MSG_SUB, "", LOST_TOPIC);
-  Serial.println(msg);
-  sendToEsp(msg);
+  SUBSCRIBE_TO(LOST_TOPIC);
   SAY("Entering IDLE state");
 
   while(true) {
-    delay(2000);
-    msg = receiveFromEsp();
+    delay(30);
+    String msg = receiveFromEsp();
     Serial.println(msg);
     if(getMessageType(msg) == MSG_ICU) {
       break;
@@ -75,6 +66,7 @@ void idle() {
 
   SAY("Hey, you found me!");
   ledYellow(1);
+  UNSUBSCRIBE_FROM(LOST_TOPIC);
 }
 
 
@@ -86,12 +78,12 @@ void idle() {
  * Lost robot that may have seen it.
  */
 void searching() {
-  SAY("I am the leader");
+  SAY("I am looking for robots");
   
   bool found = false;
   while(!found) {
     delay(1000);
-    moveDistanceInTime(10, 3, false);
+    moveDistanceInTime(5, 3, false);
 
     if(objectIsInFront()) {
       found = true;
@@ -135,25 +127,63 @@ void handshake_still() {
   
 }
 
-void follower() {
-  // TODO: fill this
-  idle();
-}
 
-void adopt_follower() {
-  // TODO: fill this
-  idle();
-}
-
-// Press A to become lost, B to become Leader
-void loop() {
-  if(buttonA.isPressed()) {
-    // I'm idle!
-    idle();
-  } else if (buttonB.isPressed()) {
-    searching();
+void waitForEsp(){
+  Serial.println("\nWaiting for ESP to be ready...");
+  String msg = receiveFromEsp();
+  while(getMessageType(msg) != MSG_ERDY) {
+    delay(30);
+    msg = receiveFromEsp();
   }
+  Serial.println("ESP is ready!");
+}
 
+void leaderElection(){
+  // Nice to have: A real leader election
+  delay(1000);
+  if(myRobotId == 1) {// Cassandra is the leader
+    imLeader = true;
+    SUBSCRIBE_TO(LEADER_TOPIC);
+    SAY("I am the leader");
+  }
+}
+
+// ---------------------------- MAIN PROGRAM ----------------------------
+
+void leaderMain(){
+  searching();
+  // TODO: Finish in a more decent manner
+  while(true) delay(3000);
+}
+
+void followerMain(){
+  idle();
+  // TODO: Finish in a more decent manner
+  while(true) delay(3000);
+}
+
+// Called only once when robot starts
+void setup() {
+  setupZumoMovement();
+  Serial.begin(9600);
+  setupToEsp();
+  setupProximity();
+  setupLedsDebug();
+  waitForEsp();
+  subscribeToSelfTopic();
+  ledYellow(0);
+  SAY("I have connected");
+  showLedsDebug(true);
+  leaderElection();
+}
+
+
+void loop() {
+  // Pretty straight forward
+  if(imLeader)
+    leaderMain();
+  else
+    followerMain();
 }
 
 
