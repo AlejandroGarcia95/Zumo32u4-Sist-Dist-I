@@ -6,12 +6,13 @@
 
 // ---------------- WIFI CONNECTION CONSTANTS ----------------
 
-#define WIFI_NETS 2 // Change when adding more networks
+#define WIFI_NETS 3 // Change when adding more networks
 
 #define CONNECTION_ATTEMPTS 8
 #define CONNECTION_DELAY 900
 
 #define MQTT_SERVER_IP "192.168.0.7"
+//#define MQTT_SERVER_IP "192.168.1.50"
 #define MQTT_SERVER_PORT 1883
 
 const char* ssid[] = {"Telecentro-40a8", "Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
@@ -29,8 +30,7 @@ serial if connection was successful or not, showing IP address.*/
 void setupWifi() {
   int attempts = 0;
   for(int i = 0; i < WIFI_NETS; i++){
-    Serial.print("\nTrying to connect to ");
-    Serial.println(&ssid[i][0]);
+    serialPrint("\nTrying to connect to " + String(&ssid[i][0]));
   
     WiFi.begin(&ssid[i][0], &password[i][0]);
 
@@ -38,23 +38,22 @@ void setupWifi() {
       delay(CONNECTION_DELAY);
       attempts++;
       if(attempts == CONNECTION_ATTEMPTS) {
-        Serial.println("Connection attempt failed");
+        serialPrint("Connection attempt failed");
         attempts = 0;
         break;
       }
     }
 
     if(WiFi.status() == WL_CONNECTED) {
-      Serial.println("\nWiFi connected");
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
+     serialPrint("\nWiFi connected");
+      serialPrint("IP address: " + String(WiFi.localIP()));
       return;
     }
       
   }
 
   // If here, we could connect to no network
-  Serial.println("\nWiFi has never conected!");
+  serialPrint("\nWiFi has never conected!");
   showLedsDebug(false);
 }
 
@@ -64,17 +63,16 @@ connection went lost. Attempts to reconnect after
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    serialPrint("Attempting MQTT connection");
     // Attempt to connect
     if (client.connect(espId, "esp8266_1", "1234")) {
-      Serial.println("connected");
+      serialPrint("Connected!");
       // ... and resubscribe
       client.subscribe(espId);
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 2 seconds");
-      // Wait 5 seconds before retrying
+      serialPrint("Failed! rc= " + String(client.state()));
+      serialPrint("Trying again in 2 seconds");
+      // Wait 2 seconds before retrying
       delay(2000);
     }
   }
@@ -87,22 +85,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
   char tmpBuffer[50] = {0};
   for(int i = 0; i < length; i++)
     tmpBuffer[i] = (char) payload[i]; 
-  String msg  = tmpBuffer;
+  String msg = tmpBuffer;
   
-  // Now retrieve message type and act accordingly
+  // Now retrieve message type
   String msgType = getMessageType(msg);
-  
-  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
+
+  if(msgType == MSG_NONE){
+    showLedsDebug(false);
+  }
+  else {
     sendToZumo(msg);
     showLedsDebug(true);
   }
-  else if(msgType == MSG_DEBUG)
-    Serial.println(msg);
-  else {
-    Serial.println(msg);
-    showLedsDebug(false);
-  }
-  
 }
 
 
@@ -115,44 +109,52 @@ void setup(void){
   client.setServer(MQTT_SERVER_IP, MQTT_SERVER_PORT);
   client.setCallback(callback);
   delay(100);
+  reconnect();
+  // Tell the Zumo this ESP is ready
+  sendToZumo(createMessage(MSG_ERDY, "", String(espId)));
   showLedsDebug(true);
 }
 
 void loop(void){
   // MQTT stuff handling
-  if (!client.connected()) {
+  if (!client.connected()){
     reconnect();
   }
   client.loop();
 
   // Receives a message from zumo and publishes it
-  String msg = receiveFromZumo(false);
+  String msg = receiveFromZumo();
   String msgType = getMessageType(msg);
   String msgTopic = getMessageTopic(msg);
+  String msgPayload = getMessagePayload(msg);
   if(msgType == MSG_NONE)
-    return;
-    
-  //Serial.println("Msg was: " + msgType + " " + getMessagePayload(msg) + " " + msgTopic + ".");
-  
-  if((msgType == MSG_MOVE) || (msgType == MSG_ROTATE)) {
-    char msgBuffer[50] = {0};
-    char topicBuffer[20] = {0};
-    msg.toCharArray(msgBuffer, msg.length() + 1);
-    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
-    client.publish(topicBuffer, msgBuffer);
-    showLedsDebug(true);
-  }
-  else if(msgType == MSG_SUB) {
-    char topicBuffer[20] = {0};
-    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
-    client.subscribe(topicBuffer);
-    showLedsDebug(true);
-  }
-  else if(msgType == MSG_DEBUG)
-    Serial.println(msg);
-  else {
-    Serial.println(msg);
+    // Happens only on error
     showLedsDebug(false);
+  else {
+    serialPrint("Msg received: [" + msgType + "," + msgPayload + "," + msgTopic + "]");
+    // Get topic for publishing or subscribing
+    char topicBuffer[20] = {0};
+    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    
+    // Switch on msgType
+    char msgBuffer[50] = {0};
+    if(msgType == MSG_SUB) {
+      client.subscribe(topicBuffer);
+      showLedsDebug(true);
+    }  
+    else if(msgType == MSG_DEBUG){
+      msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }
+    else{
+      msg.toCharArray(msgBuffer, msg.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }   
+
   }
-  
+
+  // Save some battery
+  delay(100);
 }

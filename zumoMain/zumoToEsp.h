@@ -4,13 +4,16 @@
 #include <Zumo32U4.h>
 
 /* Separators for our weirdly formatted messages.
-All valid messages have the format:
-MSG_HEADER + MsgType + MSG_SEP + Payload + MSG_FOOTER + Topic
+All valid messages have the next format:
+HEADER + msgType + SEP_1 + payload + SEP_2 + topic + MSG_FOOTER
 where + means string concatenation.*/
 
-#define MSG_HEADER "@"
-#define MSG_SEP "$"
-#define MSG_FOOTER "#"
+const String MSG_HEADER = "@";
+const String MSG_SEP_1 = "$";
+const String MSG_SEP_2 = "#";
+# define MSG_FOOTER '%'
+
+const String DEBUG_TOPIC = "debug";
 
 /*------------------------------------------------------
  		Message types
@@ -18,15 +21,25 @@ where + means string concatenation.*/
 
 // General purpose messages
 const String MSG_NONE = "NONE";
-const String MSG_ERROR = "ERROR";
 const String MSG_DEBUG = "DEBUG";
 
 // MQTT commands
-const String MSG_SUB = "SUBS";
+const String MSG_SUB = "SUB";
+const String MSG_UNSUB = "UNSUB";
 
-// Commands from Esp to Zumo
-const String MSG_MOVE = "MOVE";
-const String MSG_ROTATE = "ROTATE";
+// Message for telling Zumo the ESP is ready
+const String MSG_ERDY = "ERDY";
+
+// Messages for UFMP
+const String MSG_ICU = "ICU"; // I see you
+const String MSG_CU2 = "CU2"; // See you too
+const String MSG_CUN = "CUN"; // See you not
+const String MSG_SA = "SA"; // Start alingment
+const String MSG_FA = "FA"; // Finish alingment
+
+// Messages for FLP
+const String MSG_MOVE = "MOV"; 
+const String MSG_ROTATE = "ROT";
 
 /*------------------------------------------------------
       Functions
@@ -55,10 +68,11 @@ String getMessageTopic(String msg);
 this function DOES NOT check the message format.*/
 void sendToEsp(String msg);
 
-/* Receives a message via Serial1 from the ESP. Since there
-could be no availale message from the ESP when this function 
-is called, you may like to wait for one to arrive or not. The 
-boolean isBlocking is used for this. Returns the received message, 
-or an empty payload MSG_NONE string if isBlocking was false and 
-there was no message available to retrieve.*/
-String receiveFromEsp(bool isBlocking);
+/* Receives a message via Serial1 from the ESP. This function is NOT
+blocking, so if no valid message was received, it will return an
+empty payload MSG_NONE String. If there was a valid message, then
+it returns it as a String.*/
+String receiveFromEsp();
+
+/* Sends a string to DEBUG_TOPIC. */
+void sendDebugMessage(String payload);
