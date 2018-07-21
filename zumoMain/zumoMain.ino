@@ -6,6 +6,7 @@
 #include "zumoLedsDebug.h"
 #include "zumoToEsp.h"
 
+
 // Special topics used for our protocols
 
 const String LOST_TOPIC = "lost";
@@ -54,19 +55,33 @@ bool imLeader = false;
 void idle() {
   SUBSCRIBE_TO(LOST_TOPIC);
   SAY("Entering IDLE state");
+  String msg;
 
   while(true) {
     delay(30);
-    String msg = receiveFromEsp();
+    msg = receiveFromEsp();
     Serial.println(msg);
     if(getMessageType(msg) == MSG_ICU) {
       break;
     }
   }
 
-  SAY("Hey, you found me!");
-  ledYellow(1);
-  UNSUBSCRIBE_FROM(LOST_TOPIC);
+  SAY("Leader saw something, it could be me");
+  for (int i = 0; i <= 360; i += 45) {
+    rotate(45, true);
+    if (detectIRPulses()) {
+      msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+
+      // TODO: should wait for leader response
+      SAY("Hey, you found me!");
+      ledYellow(1);
+      UNSUBSCRIBE_FROM(LOST_TOPIC);
+      break;
+    } else {
+      SAY("It was not me");
+    }
+  }
+
 }
 
 
@@ -74,8 +89,9 @@ void idle() {
 
 /*
  * A Leader in searching state starts moving forwards (TODO: 
- * make it turn) and constantly hears for messages from any
- * Lost robot that may have seen it.
+ * make it turn) and constantly senses if there is something
+ * in front. If there is something, it sends a message to the
+ * lost robots and enters state leader_source()
  */
 void searching() {
   SAY("I am looking for robots");
@@ -95,6 +111,41 @@ void searching() {
   String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
   sendToEsp(msg);
   ledYellow(1);
+  leader_source();
+}
+
+/*
+ * A robot in leader_source state will stop its movement and
+ * turn on its LED, but without sensing anything. It will wait
+ * with the leds on for a certain amount of time listening for
+ * messages in the leaders topic, hoping a lost robot will 
+ * confirm that it can see the leader.
+ */
+void leader_source() {
+  SAY("Turnin LEDs and waiting for response");
+  int attempts = 10;
+  bool someone = false;
+  String msg;
+
+  for (int i = 0; i < attempts; i++) {
+    msg = "Attempt number " + String(i);
+    SAY(msg);
+    objectIsInFront();
+    delay(100);
+
+    msg = receiveFromEsp();
+    Serial.println(msg);
+    if(getMessageType(msg) == MSG_CU2) {
+      someone = true;
+      break;
+    }
+  }
+
+  if (someone) {
+    SAY("Someone sees me!");
+    ledYellow(0);
+    ledGreen(1);
+  }
 }
 
 /*
