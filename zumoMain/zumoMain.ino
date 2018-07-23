@@ -13,9 +13,15 @@ const String LOST_TOPIC = "lost";
 const String FOLLOWERS_TOPIC = "followers";
 const String LEADER_TOPIC = "leader";
 
-// Global IDs for our protocols */
+// Global IDs for our protocols
+
 const int myRobotId = 1;
 const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
+
+// Various constants for the protocols
+
+#define DRAIN_ATTEMPTS 20 // Used by drainMode
+#define SOURCE_TRANSMIT_DELAY 40 // Used by sourceMode
 
 // Fancy macros
 
@@ -37,12 +43,6 @@ Zumo32U4ProximitySensors proxSensors;
 L3G gyro;
 
 
-// Shouldn't be needed, but just in case
-void subscribeToSelfTopic(){
-  String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
-  sendToEsp(msg);
-}
-
 bool imLeader = false;
 
 /* Function states for LOST robots */
@@ -55,35 +55,29 @@ bool imLeader = false;
 void idle() {
   SUBSCRIBE_TO(LOST_TOPIC);
   SAY("Entering IDLE state");
-  String msg;
+  String msg = receiveFromEsp();;
 
-  while(true) {
+  // Loop until the leader sees me
+  while(getMessageType(msg) != MSG_ICU) {
     delay(30);
     msg = receiveFromEsp();
-    Serial.println(msg);
-    if(getMessageType(msg) == MSG_ICU) {
-      break;
-    }
   }
-
-  SAY("Leader saw something, it could be me");
-  for (int i = 0; i <= 360; i += 45) {
-    rotate(45, true);
-    if (detectIRPulses()) {
+  // Check if I can see the leader too
+  SAY("Leader saw something, checking if it was me...");
+  if(drainMode(10)){
       msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
-
+      sendToEsp(msg);
       // TODO: should wait for leader response
       SAY("Hey, you found me!");
       ledYellow(1);
       UNSUBSCRIBE_FROM(LOST_TOPIC);
-      break;
-    } else {
-      SAY("It was not me");
     }
+  else {
+    msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+    sendToEsp(msg);
+    SAY("Nope, it was not me!");
   }
-
 }
-
 
 /* Function states for LEADER robots */
 
@@ -95,7 +89,7 @@ void idle() {
  */
 void searching() {
   SAY("I am looking for robots");
-  
+  // Move until something is found
   bool found = false;
   while(!found) {
     delay(1000);
@@ -106,78 +100,74 @@ void searching() {
     }  
   }
   
-  // Found something, send message and turn led to indicate
+  // Found something, tell all lost robots
   SAY("I see something");
   String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
   sendToEsp(msg);
   ledYellow(1);
-  leader_source();
-}
-
-/*
- * A robot in leader_source state will stop its movement and
- * turn on its LED, but without sensing anything. It will wait
- * with the leds on for a certain amount of time listening for
- * messages in the leaders topic, hoping a lost robot will 
- * confirm that it can see the leader.
- */
-void leader_source() {
-  SAY("Turnin LEDs and waiting for response");
-  int attempts = 10;
-  bool someone = false;
-  String msg;
-
-  for (int i = 0; i < attempts; i++) {
-    msg = "Attempt number " + String(i);
-    SAY(msg);
-    objectIsInFront();
-    delay(100);
-
-    msg = receiveFromEsp();
-    Serial.println(msg);
+  
+  // Wait for lost robots to reply
+  while(true){ // TODO: loop until all robots reply (add counter)
+    msg = sourceMode();
     if(getMessageType(msg) == MSG_CU2) {
-      someone = true;
+      SAY("I found someone!");
+      ledYellow(0);
+      ledGreen(1);
+      break;
+    }
+    if(getMessageType(msg) == MSG_CUN) {
+      SAY("I found an obstacle");
       break;
     }
   }
 
-  if (someone) {
-    SAY("Someone sees me!");
-    ledYellow(0);
-    ledGreen(1);
+}
+
+// ------------------------ UFMP FUNCTIONS ------------------------
+
+/* Turns the robot into source mode, making it emit IR pulses with a
+delay of SOURCE_TRANSMIT_DELAY between each consecutive transmition.
+This function will make the robot emit pulses until a message arrives
+from the ESP, returning it as a String. */
+String sourceMode() {
+  SAY("Turning LEDs on and waiting for response...");
+  String msg = receiveFromEsp();
+
+  while(getMessageType(msg) == MSG_NONE){
+    objectIsInFront();
+    delay(SOURCE_TRANSMIT_DELAY);
+    msg = receiveFromEsp();
   }
+
+  return msg;
 }
 
-/*
- * A robot in handshake rotate will start rotating  with its 
- * proximity sensors on but without emiting pulses. That is, 
- * it will only receive.
- * It has three stages: 1) rotate anti-cw until the sensors
- * sense notihng. 2) rotate cw until sensors sense something,
- * 3) start recording the angle and rotate cw until the sensors
- * sense nothing.
- * Take de measured angle alpha and rotate alpha/2 anti-cw.
- * 
- * The parameter indicates the round of the handshake. If it is
- * over the constant HANDSHAKE_NWAYS the robot will enter in state
- * follower() or adopt_follower().
- * 
- * Else the robot will enter in handsahke_still() state.
- */
-void handshake_rotate(int nways) {
+/* Turns the robot into drain mode, passively sensing IR without emiting
+pulses. This function makes the robot rotate delta_phi degrees clockwise
+before performing DRAIN_ATTEMPTS attempts of IR pulses detection. If any
+of these attempts detects IR pulses, the function returns true WITH THE
+ROBOT STANDING IN THAT POSITION (i.e. the robot will be facing towards 
+the IR pulses' source). If no IR pulses were ever detected after having
+rotated 360 degrees, the function returns false.*/
+bool drainMode(int delta_phi){
+  for (int i = 0; i <= 360; i += delta_phi) {
+    rotate(delta_phi, true);
+    
+    for(int i = 0; i < DRAIN_ATTEMPTS; i++)
+      if(detectIRPulses())
+        return true;
+  }
 
-
+  return false;
 }
 
-/*
- * A robot in handshake still will hold its position and turn its
- * LED emmiters on. However it will ignore the readings and instead
- * let the other robot do the work
- */
-void handshake_still() {
-  
-}
+// ---------------------- AUXILIAR FUNCTIONS ----------------------
 
+// Shouldn't be needed, but just in case
+void subscribeToSelfTopic(){
+  String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
+  sendToEsp(msg);
+}
 
 void waitForEsp(){
   Serial.println("\nWaiting for ESP to be ready...");
