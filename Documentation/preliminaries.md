@@ -27,7 +27,7 @@
 
 ### 3.1. NodeMCU pinout
 
-​	The picture below shows the needed pins from the NodeMCU for our project. Similarly to what happened with the Zumo 32U4, we need a pair of pins for GND and 5v (to power up the module), and the RX and TX pins for communication. In this case, these two pins use the same UART module as the USB port of the board. Please pay attention and **do not** use the TX on pin 2 for Serial1, since it has no RX pin associated.
+​	The picture below shows the needed pins from the NodeMCU for our project. Similarly to what happened with the Zumo 32U4, we need a pair of pins for GND and 5v (to power up the module), and the RX and TX pins for communication. In this case, these two pins use the same UART module as the USB port of the board. Note the TX on pin 2 for Serial1 **cannot** be used, since it has no RX pin associated.
 
 ![](ESP8285_pinout.jpg)
 
@@ -37,8 +37,17 @@
 
 ### 3.3. Using MQTT on the NodeMCU
 
-## 4. Communicating the Zumo and ESP
+## 4. Communicating the Zumo and NodeMCU
+
+​	Now that is clear how the Zumo 32U4 and the Node MCU operate, we need to electrically connect them to allow interaction with the MQTT broker on the Zumo robot. Since the NodeMCU cannot be directly plugged into the Zumo robot like the LCD display removed, we needed to make a PCB board for every robot like the one showed in the images below: 
+
+![](EspToZumoCircuit.jpg)
+
+​	The connections used for the PCB are detailed below. Basically, as explained when analizing the pinout of both NodeMCU and Zumo robot, we used the RX/TX UART pairs for communication (RX of one device connected to TX of the other, granting data exchange), and the GND and 5v pins from the robot to power on the NodeMCU. We additionally added two LEDs on GPIOs 5 and 13 of the NodeMCU (green and red, respectively), both optional, and used only for debugging purposes (the red LED is blinked if an error occurs, and the green one if everything was successful). 
+
+![](EspToZumoCircuit.jpg)
+
+​	**Disclaimer**: If another ESP module is being used, you may want to add some voltage regulating circuit on the PCB for granting 3.3v to power it up instead of the 5v of the Zumo robot, [like this one](https://iot-playground.com/blog/2-uncategorised/17-esp8266-wifi-module-and-5v-arduino-connection).
 
 ​	
 
-![](EspToZumoCircuit.jpg)
