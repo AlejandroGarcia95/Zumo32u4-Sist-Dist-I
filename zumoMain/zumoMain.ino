@@ -72,13 +72,17 @@ void idle() {
   if(drainMode(10, true, true)){
     msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
     sendToEsp(msg);
+
     // TODO: should wait for leader response
+    SAY("Hey, you found me!");
 
     // Initiate handshake
-
-    SAY("Hey, you found me!");
-    ledYellow(1);
-    UNSUBSCRIBE_FROM(LOST_TOPIC);
+    bool aligned = handshake(imLeader, LEADER_TOPIC, 5);
+    if (aligned) {
+      ledYellow(1);
+      UNSUBSCRIBE_FROM(LOST_TOPIC);
+      SAY("We are aligned!!!");
+    }
   }
   else {
     msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
@@ -115,12 +119,13 @@ void searching() {
   ledYellow(1);
   
   // Wait for lost robots to reply
+  String the_chosen_one_topic;
+
   while(true){ // TODO: loop until all robots reply (add counter)
     msg = sourceMode();
     if(getMessageType(msg) == MSG_CU2) {
-      SAY("I found someone!");
-      ledYellow(0);
-      ledGreen(1);
+      the_chosen_one_topic = getMessagePayload(msg);
+      SAY("I found someone (" + the_chosen_one_topic + ")!");
       break;
     }
     if(getMessageType(msg) == MSG_CUN) {
@@ -129,6 +134,14 @@ void searching() {
     }
   }
 
+  // TODO: keep only one robot, reject others even if they CU2
+  // Starting alignment 
+  bool aligned = handshake(imLeader, the_chosen_one_topic, 5);
+  if (aligned) {
+      ledYellow(0);
+      ledGreen(1);
+      SAY("We are aligned!!!");
+  }
 }
 
 // ------------------------ UFMP FUNCTIONS ------------------------
