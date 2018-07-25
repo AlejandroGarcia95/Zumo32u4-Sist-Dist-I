@@ -15,8 +15,9 @@ const String LEADER_TOPIC = "leader";
 
 // Global IDs for our protocols
 
-const int myRobotId = 1;
-const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
+const int robotsAmount = 2; // Including leader
+const int myRobotId = 0;
+const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
 // Various constants for the protocols
 
@@ -58,25 +59,33 @@ void idle() {
   String msg = receiveFromEsp();;
 
   // Loop until the leader sees me
-  while(getMessageType(msg) != MSG_ICU) {
-    delay(30);
-    msg = receiveFromEsp();
-  }
-  // Check if I can see the leader too
-  SAY("Leader saw something, checking if it was me...");
-  if(drainMode(10)){
-      msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
-      sendToEsp(msg);
-      // TODO: should wait for leader response
-      SAY("Hey, you found me!");
-      ledYellow(1);
-      UNSUBSCRIBE_FROM(LOST_TOPIC);
+  bool imSeen = false;
+  while(!imSeen){
+    
+    while(getMessageType(msg) != MSG_ICU) {
+      delay(30);
+      msg = receiveFromEsp();
     }
-  else {
-    msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
-    sendToEsp(msg);
-    SAY("Nope, it was not me!");
+    // Check if I can see the leader too
+    SAY("Leader saw something, checking if it was me...");
+    if(drainMode(10)){
+        msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+        sendToEsp(msg);
+        // TODO: should wait for leader response
+        SAY("Hey, you found me!");
+        imSeen = true;
+      }
+    else {
+      msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+      sendToEsp(msg);
+      SAY("Nope, it was not me!");
+    }
+    
   }
+
+  ledYellow(1);
+  UNSUBSCRIBE_FROM(LOST_TOPIC);
+  moveDistanceInTime(10, 2, true);
 }
 
 /* Function states for LEADER robots */
@@ -89,38 +98,43 @@ void idle() {
  */
 void searching() {
   SAY("I am looking for robots");
-  // Move until something is found
-  bool found = false;
-  while(!found) {
-    delay(1000);
-    moveDistanceInTime(5, 3, false);
-
-    if(objectIsInFront()) {
-      found = true;
-    }  
-  }
-  
-  // Found something, tell all lost robots
-  SAY("I see something");
-  String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
-  sendToEsp(msg);
-  ledYellow(1);
-  
-  // Wait for lost robots to reply
-  while(true){ // TODO: loop until all robots reply (add counter)
-    msg = sourceMode();
-    if(getMessageType(msg) == MSG_CU2) {
-      SAY("I found someone!");
-      ledYellow(0);
-      ledGreen(1);
-      break;
+  int robotsFound = 0;
+  while(robotsFound < (robotsAmount - 1)) {
+    // Move until something is found
+    randomWalk();
+    
+    // Found something, tell all lost robots
+    SAY("I see something");
+    String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
+    sendToEsp(msg);
+    ledYellow(1);
+    
+    // Wait for lost robots to reply
+    int robotsReplies = 0;
+    bool foundSomeone = false;
+    while(robotsReplies < (robotsAmount - 1)){ 
+      msg = sourceMode();
+      if(getMessageType(msg) == MSG_CU2) {
+        SAY("I found " + getMessagePayload(msg) + "!");
+        robotsReplies++;
+        robotsFound++;
+        // TODO: Send response to robot
+        foundSomeone = true;
+      }
+      if(getMessageType(msg) == MSG_CUN) {
+        SAY("I haven't found " + getMessagePayload(msg) + " as they can't see me");
+        robotsReplies++;
+      }
     }
-    if(getMessageType(msg) == MSG_CUN) {
-      SAY("I found an obstacle");
-      break;
-    }
+  
+    if(!foundSomeone)
+      SAY("What I found was not a robot fella");
+  
   }
 
+  SAY("I finally found all my robot mates");
+  ledYellow(0);
+  ledGreen(1);
 }
 
 // ------------------------ UFMP FUNCTIONS ------------------------
@@ -161,6 +175,19 @@ bool drainMode(int delta_phi){
   return false;
 }
 
+// TODO: Replace with real randomWalk
+void randomWalk(){
+  bool found = false;
+  while(!found) {
+    delay(1000);
+    moveDistanceInTime(5, 3, false);
+
+    if(objectIsInFront()) {
+      found = true;
+    }  
+  }
+}
+
 // ---------------------- AUXILIAR FUNCTIONS ----------------------
 
 // Shouldn't be needed, but just in case
@@ -181,8 +208,8 @@ void waitForEsp(){
 
 void leaderElection(){
   // Nice to have: A real leader election
-  delay(1000);
-  if(myRobotId == 1) {// Cassandra is the leader
+  delay(500);
+  if(myRobotId == 0) {// Cassandra is the leader
     imLeader = true;
     SUBSCRIBE_TO(LEADER_TOPIC);
     SAY("I am the leader");
