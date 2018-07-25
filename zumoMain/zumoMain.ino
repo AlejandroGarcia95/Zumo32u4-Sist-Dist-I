@@ -15,7 +15,7 @@ const String LEADER_TOPIC = "leader";
 
 // Global IDs for our protocols
 
-const int myRobotId = 1;
+const int myRobotId = 0;
 const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
 
 // Various constants for the protocols
@@ -77,7 +77,7 @@ void idle() {
     SAY("Hey, you found me!");
 
     // Initiate handshake
-    bool aligned = handshake(imLeader, LEADER_TOPIC, 5);
+    bool aligned = handshake(false, LEADER_TOPIC, 16);
     if (aligned) {
       ledYellow(1);
       UNSUBSCRIBE_FROM(LOST_TOPIC);
@@ -119,13 +119,13 @@ void searching() {
   ledYellow(1);
   
   // Wait for lost robots to reply
-  String the_chosen_one_topic;
+  String foundOne;
 
   while(true){ // TODO: loop until all robots reply (add counter)
     msg = sourceMode();
     if(getMessageType(msg) == MSG_CU2) {
-      the_chosen_one_topic = getMessagePayload(msg);
-      SAY("I found someone (" + the_chosen_one_topic + ")!");
+      foundOne = getMessagePayload(msg);
+      SAY("I found " + foundOne + "!");
       break;
     }
     if(getMessageType(msg) == MSG_CUN) {
@@ -134,9 +134,11 @@ void searching() {
     }
   }
 
+  delay(2000);
+  SAY("I'm gonna start aligning, dude!");
   // TODO: keep only one robot, reject others even if they CU2
   // Starting alignment 
-  bool aligned = handshake(imLeader, the_chosen_one_topic, 5);
+  bool aligned = handshake(true, foundOne, 16);
   if (aligned) {
       ledYellow(0);
       ledGreen(1);
@@ -175,13 +177,17 @@ will be facing towards the direction where it first sensed pulses, or stoped
 sensing them). If no changes in IR pulses detection where made after having
 rotated 360 degrees, the function returns -1, else it returns the angle
 turned.*/
-int drainMode(int delta_phi, bool clockwise, bool something) {
+int drainMode(int delta_phi, bool isClockwise, bool something) {
   for (int i = 0; i <= 360; i += delta_phi) {
-    rotate(delta_phi, clockwise);
-    
+    rotate(delta_phi, isClockwise);
+
+    bool foundPulses = false;
     for(int j = 0; j < DRAIN_ATTEMPTS; j++)
-      if(something == detectIRPulses())
-        return i;
+      if(detectIRPulses())
+        foundPulses = true;
+    
+    if(something == foundPulses)
+      return i;
   }
 
   return -1;
@@ -206,13 +212,14 @@ both robots have finished alignment.
 Powered by: modulo 2 arithmetic
 */
 bool handshake(bool first, String other_topic, int delta_phi) {
+  SAY("On handshake against " + other_topic);
   String msg;
-  int stage = 0;
-  if (first) 
-    stage++;
+  int stage = (first ? 1 : 0);
+  SAY("Starting handshake on stage " + String(stage));
 
   for (int i = 0; i < HALF_HANDSHAKE_ITERATIONS; i++) {
-    if (stage % 2) {
+    if((stage % 2) == 1) {
+      delay(200);
       SAY("I am sourcing on half handshake " + String(i));
       msg = createMessage(MSG_SA, "", other_topic);
       sendToEsp(msg);
@@ -227,7 +234,11 @@ bool handshake(bool first, String other_topic, int delta_phi) {
     } else {
       SAY("I am rotating on half handshake " + String(i));
       // Wait for signal to start rotating
-      msg = sourceMode();
+      msg = receiveFromEsp();
+      while(getMessageType(msg) == MSG_NONE){
+        delay(20);
+        msg = receiveFromEsp();
+      }
       if (getMessageType(msg) != MSG_SA){
         SAY("Unexpected message type while alignment");
         return false;
@@ -311,6 +322,7 @@ void setup() {
   setupToEsp();
   setupProximity();
   setupLedsDebug();
+  buttonA.waitForButton();
   waitForEsp();
   subscribeToSelfTopic();
   ledYellow(0);
