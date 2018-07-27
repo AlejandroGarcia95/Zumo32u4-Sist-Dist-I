@@ -1,11 +1,11 @@
-# Wi-Fi based robot gathering over ESP8285 NodeMCU
+# Wi-Fi based robot's finding over ESP8285 NodeMCU
 
 ## 1. Introduction
 
 ​​​​Fill me with some intro
 
 ## 2. Preliminaries
-   
+
 ​​​​This preliminary section is intended to briefly present the tools and devices used in our project, highlighting some related guides, tutorials and examples we found useful while working with them. As such, we do not pursue to make a deep explanation on every topic, but a quick and simple exposition of the most relevant aspects for our project. You may then want to skip some of these sections if you are already familiar with the devices described, or already know how to perform the steps detailed on them.
 
 **Note**: You will need to have Arduino IDE installed on your machine for programming the devices used in our project. You can download Arduino IDE [directly from their website](https://www.arduino.cc/en/Main/Software?).
@@ -92,6 +92,50 @@
 
 ![](EspToZumoCircuit.jpg)
 
-## 3. Robot gathering in depth
+## 3. Robot's finding in depth
 
 ​​​​Now that it is clear what devices are involved in our project and how they will communicate, ...
+
+### 3.1. Algorithm's overview
+
+​​​​Simple explanation here. Say there are lost robots and a leader.
+
+### 3.1.1 Robot's finding flowchart
+
+​​​​Flowchart and explanation here. Introduce UFMP.
+
+### 3.1.2. Messages used
+
+​​​​List all messages and their purpose
+
+### 3.1.3. MQTT topics
+
+​​​​Flowchart and simple explanation here
+
+### 3.1.4. UFMP in detail
+
+​​​​Explain how does UFMP work.
+
+### 3.2. Robot's finding implementation
+
+​​​​Say something cool
+
+### 3.2.1. Our source files
+
+​​​​List all source files and briefly explain what they do
+
+### 3.2.2. ESP8285 NodeMCU code
+
+​​​​Step by step explanation of espMain.ino
+
+### 3.2.3 Zumo32U4 code
+
+​​​​Step by step explanation of zumoMain.ino
+
+## 4. Closing remarks
+
+​​​​Some really nice conclusion
+
+## 5. Next steps
+
+​​​​Everything that could be done from now onwards with this
