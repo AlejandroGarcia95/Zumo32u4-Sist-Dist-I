@@ -94,7 +94,7 @@
 
 ## 3. Robot's finding in depth
 
-​​​​Now that it is clear what devices are involved in our project and how they will communicate, ...
+​​​​Now that it is clear what devices are involved in our project and how they communicate, we can inspect in detail how our implementation works. The following sections will explain the main idea of our robot's finding distributed algorithm, and review the code on the NodeMCU and the Zumo robot.
 
 ### 3.1. Algorithm's overview
 
@@ -104,9 +104,22 @@
 
 ​​​​Flowchart and explanation here. Introduce UFMP.
 
-### 3.1.2. Messages used
+### 3.1.2. Messaging in our algorithm
 
-​​​​List all messages and their purpose
+​​​​As seen in the flowchart of the previous section, the leader and lost robots need to communicate under many different scenarios. In order to easily generate and parse those various messages, we adopted a very simple format: every message is a string containing a message type, the topic related to that message (i.e. where to publish it, or where it was received from), and a payload field, which can be filled with any other useful information. These three fields are separated by a special character delimitator (for instance, '#'), making the parsing task rather easy. 
+
+​​​​Hence, we can create any message we want from the Zumo robot with a regular string concatenation, and send it to the NodeMCU by printing on Serial1 as already discussed on the preliminary section. The NodeMCU will then receive that message, parse it to find its topic, and publish it there via the PubSubClient library. On the other hand, if the NodeMCU receives a message from the MQTT broker instead, it will only need to print it on its Serial port. The Zumo 32U4 will be able to recover it by reading Serial1, and act accordingly based on the message's type and payload.
+
+​​​​The different message types we used in our project are the following:
+
+- **"ESP is ready" (ERDY)**: Sent from the ESP8285 NodeMCU to the Zumo once the wireless and MQTT connection have been established. After receiving this message, the Zumo robot will start sending messages to the NodeMCU for publishing.
+- **"Subscribe to topic" (SUB)**: Used by the Zumo robot to tell the NodeMCU to subscribe to some particular MQTT topic. 
+- **"Unsubscribe from topic" (UNSUB)**: Works like the SUB message, but for unsubscribing from a topic.
+- **"I see you" (ICU)**: This message is sent from the leader robot to all lost robots every time the first one finds something with the proximity sensors. This way, all lost robots will know the leader may be seeing one of them, and will try to see the leader on their own. 
+- **"See you too" (CU2)**: Used as a reply from the lost robots to the message above. If any lost robot sees the leader, it will reply this message to it. 
+- **"See you not" (CUN)**: Similar like the above, but in a negative manner (lost robot does not see the leader). 
+- **"Debug message" (DEBUG)**: Message for debugging purposes only. The NodeMCU will publish all DEBUG message's payloads to a "debug topic", which can be used to trace the state of the algorithm.
+- **"No message" (NONE)**: Basically, this message type is used for telling some message is no valid at all. You may think of it as a "null type" message. For instance, this type is returned when trying to parse a message type of invalid format, or when trying to read a message from the UART module with it being empty.
 
 ### 3.1.3. MQTT topics
 
@@ -138,4 +151,12 @@
 
 ## 5. Next steps
 
-​​​​Everything that could be done from now onwards with this
+Everything that could be done from now onwards with this
+
+geolocation
+
+followers in a conga line
+
+security issues
+
+real leader election
