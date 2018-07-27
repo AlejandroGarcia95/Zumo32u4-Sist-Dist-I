@@ -83,9 +83,11 @@ void idle() {
     
   }
 
-  ledYellow(1);
+  // TODO: Change for a fancier exit
   UNSUBSCRIBE_FROM(LOST_TOPIC);
-  moveDistanceInTime(10, 2, true);
+  ledYellow(1);
+  delay(1500);
+  moveDistanceInTime(10, 3, true);
 }
 
 /* Function states for LEADER robots */
@@ -127,11 +129,15 @@ void searching() {
       }
     }
   
-    if(!foundSomeone)
+    if(foundSomeone)
+      if((robotsAmount - robotsFound) > 1)
+        SAY("I still need to find " + String(robotsAmount - robotsFound - 1) + " lost robots");
+    else
       SAY("What I found was not a robot fella");
   
   }
 
+  // TODO: Do something funny
   SAY("I finally found all my robot mates");
   ledYellow(0);
   ledGreen(1);
