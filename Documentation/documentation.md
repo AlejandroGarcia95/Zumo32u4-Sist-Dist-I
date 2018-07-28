@@ -178,7 +178,7 @@ const char* ssid[] = {"Telecentro-40a8", "Speedy-Fibra-BF992E", "HUAWEI P9 lite"
 const char* password[] = {"DDZ2WNHZ2NKN", "98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
 ```
 
-​​​​The easiest part to understand are the MQTT constants defined for the connection: MQTT_SERVER_IP and MQTT_SERVER_PORT just define the broker IP address and port the ESP will be trying to connect to. Now, the next of the constants are for satisfying Wi-Fi connectivity, as seen on the next function of the file:
+The easiest part to understand are the MQTT constants defined for the connection: MQTT_SERVER_IP and MQTT_SERVER_PORT just define the broker IP address and port the ESP will be trying to connect to. Now, the next of the constants are for satisfying Wi-Fi connectivity, as seen on the next function of the file:
 
 ```c++
 /* Connects to a WiFi network available from the ssid array. 
@@ -216,9 +216,9 @@ void setupWifi() {
 }
 ```
 
-​​​​As you can see, the function iterates over the ssid array calling the *Wifi.begin* function, thus attempting a connection. If that connection is refused CONNECTION_ATTEMPTS times, the function will try to connect to the next network on the array. This is, then, a mere trick of us for beginning the Wi-Fi connection withouth needing to change the network name and password every time we changed location. If you know you are only using one Wi-Fi network for testing the project, you may want to erase the array and just keep things simple.
+As you can see, the function iterates over the ssid array calling the *Wifi.begin* function, thus attempting a connection. If that connection is refused CONNECTION_ATTEMPTS times, the function will try to connect to the next network on the array. This is, then, a mere trick of us for beginning the Wi-Fi connection withouth needing to change the network name and password every time we changed location. If you know you are only using one Wi-Fi network for testing the project, you may want to erase the array and just keep things simple.
 
-​​​​Going on with our analysis, we will see the *reconnect* function, in charge of reconnecting the NodeMCU with the MQTT broker if connection gets lost. We can see such connection is done with the *client.connect* function call, with a unique espId field to identify this device from others. The two other fields are the "userId" and "password" for MQTT, which you may like to change if seeking some security level.
+Going on with our analysis, we will see the *reconnect* function, in charge of reconnecting the NodeMCU with the MQTT broker if connection gets lost. We can see such connection is done with the *client.connect* function call, with a unique espId field to identify this device from others. The two other fields are the "userId" and "password" for MQTT, which you may like to change if seeking some security level.
 
 ```c++
 /* Attemtps a reconnection with MQTT if this client
@@ -243,7 +243,7 @@ void reconnect() {
 }
 ```
 
-​​​​The next function in the file is the *callback* function, which (as its name suggests) will be automatically called right after the NodeMCU receives a message from the MQTT broker:
+The next function in the file is the *callback* function, which (as its name suggests) will be automatically called right after the NodeMCU receives a message from the MQTT broker:
 
 ```c++
 /* MQTT juicy part: callback function to be called when a
@@ -270,6 +270,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 ​​​​Since the message received on the NodeMCU was originally sent from another Zumo robot, we can see that, after performing a little String conversion and some error checking, the function only needs to forward that message to the robot this ESP8285 NodeMCU is connected to.
 
+​​​​Moving into the *setup* function of the .ino file, we can see the callings of the previous *setup* and *reconnect* functions, aside from some configuration of the PubSubClient library involving the *callback* and MQTT_SERVER constants:
+
 ```c++
 void setup(void){
   setupLedsDebug();
@@ -285,7 +287,9 @@ void setup(void){
 }
 ```
 
+​​​​We can see above that the NodeMCU first connects to some Wi-Fi network and then to the MQTT broker (the calls to *setupLedsDebug* and *setupToZumo* are setup functions of the header files related to the NodeMCU, described on the previous section). When finished, the device sends to the Zumo robot the message "ESP is ready", and becomes available for use.
 
+​​​​This way, we can finally look into the *loop* function code, which will have the task of handling messages received from the Zumo 32U4 (remember messages received from the MQTT broker are already handled on the *callback* function).
 
 ```c++
 void loop(void){
@@ -330,7 +334,9 @@ void loop(void){
 }
 ```
 
+​​​​The very simple code then performs some action based on the message type: when receiving some SUB or UNSUB message, the NodeMCU will subscribe or unsubscribe to that topic; when receiving a DEBUG message, it will publish the message payload into the debug topic; and on any other case, the NodeMCU will just act as a dispatcher, forwarding the message recieved into the message topic. 
 
+​​​​To sum up, all the code above allows the ESP8285 NodeMCU to connect to a Wi-Fi network and the MQTT broker, and puts it in the service of the Zumo robot. The Zumo 32U4 connected to it will then be able to subscribe, unsubscribe and publish messages via MQTT using the NodeMCU as its middleman.
 
 ### 3.2.3 Zumo32U4 code
 
