@@ -141,11 +141,11 @@ Flowchart and explanation here. Introduce UFMP.
 
 ### 3.2. Robot's finding implementation
 
-With the main idea of our algorithm already understood, we can now proceed to its real implementation. All code used can be found [in the Github repository for our project](https://github.com/AlejandroGarcia95/Zumo32u4-Sist-Dist-I). Although the code is already documented and references parts of this explanation, we will discuss in the next sections the most relevant aspects of it.
+​​​​With the main idea of our algorithm already understood, we can now proceed to its real implementation. All code used can be found [in the Github repository for our project](https://github.com/AlejandroGarcia95/Zumo32u4-Sist-Dist-I). Although the code is already documented and references parts of this explanation, we will discuss in the next sections the most relevant aspects of it.
 
 ### 3.2.1. Our source files
 
-The code in our repo is splitted in two separated directories, with the code suitable for the ESP8285 NodeMCU and the Zumo 32U4 on each one. Aside from the main .ino file for both devices, you will notice some other auxiliary header files, as you could expect on any C/C++ project. These different files and their purposes are detailed below.
+​​​​The code in our repo is splitted in two separated directories, with the code suitable for the ESP8285 NodeMCU and the Zumo 32U4 on each one. Aside from the main .ino file for both devices, you will notice some other auxiliary header files, as you could expect on any C/C++ project. These different files and their purposes are detailed below.
 
 **Header files used with ESP8285 NodeMCU**:
 
@@ -161,7 +161,176 @@ The code in our repo is splitted in two separated directories, with the code sui
 
 ### 3.2.2. ESP8285 NodeMCU code
 
-​​​​Step by step explanation of espMain.ino
+​​​​After reviewing this project's structure, we can now focus on the .ino file for the ESP8285 NodeMCU. Yay! You will be able to see it beginning with the next few lines:
+
+```c++
+// ---------------- WIFI CONNECTION CONSTANTS ----------------
+
+#define WIFI_NETS 3 // Change when adding more networks
+
+#define CONNECTION_ATTEMPTS 8
+#define CONNECTION_DELAY 900
+
+#define MQTT_SERVER_IP "192.168.0.7"
+#define MQTT_SERVER_PORT 1883
+
+const char* ssid[] = {"Telecentro-40a8", "Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
+const char* password[] = {"DDZ2WNHZ2NKN", "98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
+```
+
+​​​​The easiest part to understand are the MQTT constants defined for the connection: MQTT_SERVER_IP and MQTT_SERVER_PORT just define the broker IP address and port the ESP will be trying to connect to. Now, the next of the constants are for satisfying Wi-Fi connectivity, as seen on the next function of the file:
+
+```c++
+/* Connects to a WiFi network available from the ssid array. 
+For such, performs CONNECTION ATTEMPTS attempts for connecting,
+with a CONNECTION_DELAY delay of time between them. Logs to 
+serial if connection was successful or not, showing IP address.*/
+void setupWifi() {
+  int attempts = 0;
+  for(int i = 0; i < WIFI_NETS; i++){
+    serialPrint("\nTrying to connect to " + String(&ssid[i][0]));
+  
+    WiFi.begin(&ssid[i][0], &password[i][0]);
+
+    while(WiFi.status() != WL_CONNECTED) {
+      delay(CONNECTION_DELAY);
+      attempts++;
+      if(attempts == CONNECTION_ATTEMPTS) {
+        serialPrint("Connection attempt failed");
+        attempts = 0;
+        break;
+      }
+    }
+
+    if(WiFi.status() == WL_CONNECTED) {
+     serialPrint("\nWiFi connected");
+      serialPrint("IP address: " + String(WiFi.localIP()));
+      return;
+    }
+      
+  }
+
+  // If here, we could connect to no network
+  serialPrint("\nWiFi has never conected!");
+  showLedsDebug(false);
+}
+```
+
+​​​​As you can see, the function iterates over the ssid array calling the *Wifi.begin* function, thus attempting a connection. If that connection is refused CONNECTION_ATTEMPTS times, the function will try to connect to the next network on the array. This is, then, a mere trick of us for beginning the Wi-Fi connection withouth needing to change the network name and password every time we changed location. If you know you are only using one Wi-Fi network for testing the project, you may want to erase the array and just keep things simple.
+
+​​​​Going on with our analysis, we will see the *reconnect* function, in charge of reconnecting the NodeMCU with the MQTT broker if connection gets lost. We can see such connection is done with the *client.connect* function call, with a unique espId field to identify this device from others. The two other fields are the "userId" and "password" for MQTT, which you may like to change if seeking some security level.
+
+```c++
+/* Attemtps a reconnection with MQTT if this client
+connection went lost. Attempts to reconnect after
+2 seconds.*/
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    serialPrint("Attempting MQTT connection");
+    // Attempt to connect
+    if (client.connect(espId, "esp8266_1", "1234")) {
+      serialPrint("Connected!");
+      // ... and resubscribe
+      client.subscribe(espId);
+    } else {
+      serialPrint("Failed! rc= " + String(client.state()));
+      serialPrint("Trying again in 2 seconds");
+      // Wait 2 seconds before retrying
+      delay(2000);
+    }
+  }
+}
+```
+
+​​​​The next function in the file is the *callback* function, which (as its name suggests) will be automatically called right after the NodeMCU receives a message from the MQTT broker:
+
+```c++
+/* MQTT juicy part: callback function to be called when a
+new message arrives on ANY topic.*/
+void callback(char* topic, byte* payload, unsigned int length) {
+  // Retrieve the message on a String object
+  char tmpBuffer[50] = {0};
+  for(int i = 0; i < length; i++)
+    tmpBuffer[i] = (char) payload[i]; 
+  String msg = tmpBuffer;
+  
+  // Now retrieve message type
+  String msgType = getMessageType(msg);
+
+  if(msgType == MSG_NONE){
+    showLedsDebug(false);
+  }
+  else {
+    sendToZumo(msg);
+    showLedsDebug(true);
+  }
+}
+```
+
+​​​​Since the message received on the NodeMCU was originally sent from another Zumo robot, we can see that, after performing a little String conversion and some error checking, the function only needs to forward that message to the robot this ESP8285 NodeMCU is connected to.
+
+```c++
+void setup(void){
+  setupLedsDebug();
+  setupToZumo();
+  setupWifi();
+  client.setServer(MQTT_SERVER_IP, MQTT_SERVER_PORT);
+  client.setCallback(callback);
+  delay(100);
+  reconnect();
+  // Tell the Zumo this ESP is ready
+  sendToZumo(createMessage(MSG_ERDY, "", String(espId)));
+  showLedsDebug(true);
+}
+```
+
+
+
+```c++
+void loop(void){
+  // MQTT stuff handling
+  if (!client.connected()){
+    reconnect();
+  }
+  client.loop();
+
+  // Receives a message from zumo and publishes it
+  String msg = receiveFromZumo();
+  String msgType = getMessageType(msg);
+  String msgTopic = getMessageTopic(msg);
+  String msgPayload = getMessagePayload(msg);
+  if(msgType == MSG_NONE)
+    // Happens only on error
+    showLedsDebug(false);
+  else {
+    serialPrint("Msg received: [" + msgType + "," + msgPayload + "," + msgTopic + "]");
+    // Get topic for publishing or subscribing
+    char topicBuffer[20] = {0};
+    msgTopic.toCharArray(topicBuffer, msgTopic.length() + 1);
+    
+    // Switch on msgType
+    char msgBuffer[50] = {0};
+    if(msgType == MSG_SUB) {
+      client.subscribe(topicBuffer);
+      showLedsDebug(true);
+    }  
+    else if(msgType == MSG_DEBUG){
+      msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }
+    else{
+      msg.toCharArray(msgBuffer, msg.length() + 1);
+      client.publish(topicBuffer, msgBuffer);
+      showLedsDebug(true);
+    }   
+
+  }
+}
+```
+
+
 
 ### 3.2.3 Zumo32U4 code
 
@@ -169,7 +338,7 @@ The code in our repo is splitted in two separated directories, with the code sui
 
 ## 4. Closing remarks
 
-​​​​Some really nice conclusion
+Some really nice conclusion
 
 ## 5. Next steps
 
