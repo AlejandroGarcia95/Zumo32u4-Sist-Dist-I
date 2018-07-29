@@ -141,6 +141,10 @@ void loop(void){
     if(msgType == MSG_SUB) {
       client.subscribe(topicBuffer);
       showLedsDebug(true);
+    }
+    else if(msgType == MSG_UNSUB) {
+      client.unsubscribe(topicBuffer);
+      showLedsDebug(true);
     }  
     else if(msgType == MSG_DEBUG){
       msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
