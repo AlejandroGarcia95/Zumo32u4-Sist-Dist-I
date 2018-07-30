@@ -15,8 +15,8 @@ const String LEADER_TOPIC = "leader";
 
 // Global IDs for our protocols
 
-const int robotsAmount = 2; // Including leader
-const int myRobotId = 0;
+const int robotsAmount = 3; // Including leader
+const int myRobotId = 1;
 const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
 // Various constants for the protocols
@@ -68,7 +68,7 @@ void idle() {
     }
     // Check if I can see the leader too
     SAY("Leader saw something, checking if it was me...");
-    if(drainMode(10)){
+    if(drainMode(90)){
         msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
         sendToEsp(msg);
         // TODO: should wait for leader response
@@ -87,6 +87,7 @@ void idle() {
   UNSUBSCRIBE_FROM(LOST_TOPIC);
   ledYellow(1);
   delay(1500);
+  rotate(90, true);
   moveDistanceInTime(10, 3, true);
 }
 
@@ -103,7 +104,7 @@ void searching() {
   int robotsFound = 0;
   while(robotsFound < (robotsAmount - 1)) {
     // Move until something is found
-    randomWalk();
+    spiralWalk();
     
     // Found something, tell all lost robots
     SAY("I see something");
@@ -114,7 +115,7 @@ void searching() {
     // Wait for lost robots to reply
     int robotsReplies = 0;
     bool foundSomeone = false;
-    while(robotsReplies < (robotsAmount - 1)){ 
+    while(robotsReplies < (robotsAmount - robotsFound - 1)){ 
       msg = sourceMode();
       if(getMessageType(msg) == MSG_CU2) {
         SAY("I found " + getMessagePayload(msg) + "!");
@@ -182,15 +183,31 @@ bool drainMode(int delta_phi){
 }
 
 // TODO: Replace with real randomWalk
-void randomWalk(){
+int spiral_steps = 1;
+int spiral_stage = 0;
+int spiral_act = 0;
+
+void spiralWalk(){
+  long rnd;
   bool found = false;
   while(!found) {
     delay(1000);
-    moveDistanceInTime(5, 3, false);
-
+    if (spiral_act < spiral_steps) {
+      moveDistanceInTime(8, 3, false);
+      spiral_act++;
+    } else {
+      // rotate
+      spiral_act = 0;
+      rotate(89, true);
+      if (spiral_stage % 2 == 1) {
+        spiral_steps++;
+      }
+      spiral_stage++;
+    }
+    
     if(objectIsInFront()) {
       found = true;
-    }  
+    }
   }
 }
 
@@ -200,6 +217,7 @@ void randomWalk(){
 void subscribeToSelfTopic(){
   String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
   sendToEsp(msg);
+  Serial.println(msg);
 }
 
 void waitForEsp(){
@@ -238,6 +256,7 @@ void followerMain(){
 
 // Called only once when robot starts
 void setup() {
+  randomSeed(analogRead(0));
   setupZumoMovement();
   Serial.begin(9600);
   setupToEsp();
@@ -246,7 +265,9 @@ void setup() {
   waitForEsp();
   subscribeToSelfTopic();
   ledYellow(0);
+  ledRed(1);
   SAY("I have connected");
+  ledGreen(1);
   showLedsDebug(true);
   leaderElection();
 }
