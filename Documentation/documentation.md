@@ -129,7 +129,7 @@ Hence, a message sent from one robot to another follows the path of the image be
 - **"ESP is ready" (ERDY)**: Sent from the ESP8285 NodeMCU to the Zumo once the wireless and MQTT connection have been established. After receiving this message, the Zumo robot will start sending messages to the NodeMCU for publishing.
 - **"Subscribe to topic" (SUB)**: Used by the Zumo robot to tell the NodeMCU to subscribe to some particular MQTT topic. 
 - **"Unsubscribe from topic" (UNSUB)**: Works like the SUB message, but for unsubscribing from a topic.
-- **"I see you" (ICU)**: This message is sent from the leader robot to all lost robots every time the first one finds something with the proximity sensors. This way, all lost robots will know the leader may be seeing one of them, and will try to see the leader on their own. 
+- **"I see you" (ICU)**: Starting message of the UFMP. This message is sent from the leader robot to all lost robots every time the first one finds something with the proximity sensors. This way, all lost robots will know the leader may be seeing one of them, and will try to see the leader on their own. 
 - **"See you too" (CU2)**: Used as a reply from the lost robots to the message above. If any lost robot sees the leader, it will reply this message to it. 
 - **"See you not" (CUN)**: Similar like the above, but in a negative manner (lost robot does not see the leader). 
 - **"Debug message" (DEBUG)**: Message for debugging purposes only. The NodeMCU will publish all DEBUG message's payloads to a "debug topic", which can be used to trace the state of the algorithm.
@@ -151,7 +151,25 @@ Hence, a message sent from one robot to another follows the path of the image be
 
 ### 3.1.4. UFMP in detail
 
-​​​​Explain how does UFMP work.
+​​​​Recalling the flowchart describing our algorithm, the UFMP was tbe responsible of determinating the identity of objects found by the leader. Now we understand what messages and MQTT topics are involved, we can uncover UFMP working details.
+
+​​​​According to our robot's finding algorithm, the leader had to look around for its lost partner using the IR proximity sensors incorporated on the Zumo 32U4. However, once the leader finds something, it has no way of telling if such thing was another robot or just some random object standing there:
+
+![](placeholder.jpg)
+
+​​​​It is at this point where the little protocol we called UFMP comes in action. According to it, the leader will have to broadcast an "I see you" message to all lost robots, which were actually waiting that to also start UFMP (as seen in our algorithm's flowcharts).
+
+![](placeholder.jpg)
+
+​​​​Now that leader and lost robots are sycnhronized, they can all check if they see each other. For that, the leader will remain transmitting IR pulses from its front LEDs, while the lost robots will try to sense them **without turning on their own IR LEDs**. Note how important it is to have only one robot emitting IR pulses at a time. If, let's say, the lost robots were to use their own proximity sensors by transmitting IR pulses, they could cause interference between each other.
+
+![](placeholder.jpg)
+
+​​​​Therefore, the leader robot will keep emitting IR pulses while the lost robots will be trying to detect them. However, it is very likely that a found robot and the leader would not be facing each other directly (i.e. front to front, LEDs against LEDs). Then, if a lost robot fails to detect IR pulses, it cannot inmediately tell the leader it was not found. Instead, the lost robot must rotate some "delta phi" angle, and then try to receive IR pulses there. Only after an entire round (360 degrees rotated), the lost robot can be certain it was not being seen by the leader.
+
+![](placeholder.jpg)
+
+​​​​Lost robots will then be able to answer the leader if they have detected or not the IR pulses. The "I see you too" and "See you not" messages previously mentioned are used for this purpose.
 
 ### 3.2. Robot's finding implementation
 
