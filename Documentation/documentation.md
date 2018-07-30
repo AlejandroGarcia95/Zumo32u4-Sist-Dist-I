@@ -16,11 +16,11 @@
 
 #### 2.1.1. Zumo 32U4 pinout
 
-​​​​In order to communicate the robots between each other, we first needed to release some of the ATmega32U4 pins of the Zumo for use. We achieved  this by removing the LCD display of the robot as shown in the picture below (do not worry: the LC can be easily unplugged and plugged back again later).
+In order to communicate the robots between each other, we first needed to release some of the ATmega32U4 pins of the Zumo for use. We achieved  this by removing the LCD display of the robot as shown in the picture below (do not worry: the LCD can be easily unplugged and plugged back again later).
 
 ![](LCD_remove.jpg)
 
-​​​​Once removed, the LCD releases many pins of the robot's microcontroller. Four of those pins were needed, as marked on the image below: a GND and 5v pair of pins, which will serve as a voltage source for the ESP module (as will be explained on the latest section of this document); and pins 0 and 1 from the microcontroller, known respectively as RXD1 and TXD1. These two RX and TX pins control one of the UART serial modules of the ATmega32U4 microcontroller, hence allowing us to send and receive data to the ESP (again, explained on the latest section).
+Once removed, the LCD releases many pins of the robot's microcontroller. Four of those pins were needed, as marked on the image below: a GND and 5v pair of pins, which will serve as a voltage source for the ESP module (as will be explained on the latest section of this document); and pins 0 and 1 from the microcontroller, known respectively as RXD1 and TXD1. These two RX and TX pins control one of the UART serial modules of the ATmega32U4 microcontroller, hence allowing us to send and receive data to the ESP (again, explained on the latest section).
 
 ![](Zumo32U4_pinout.jpg)
 
@@ -318,7 +318,7 @@ void loop(void){
     if(msgType == MSG_SUB) {
       client.subscribe(topicBuffer);
       showLedsDebug(true);
-    }  
+    }
     else if(msgType == MSG_DEBUG){
       msgPayload.toCharArray(msgBuffer, msgPayload.length() + 1);
       client.publish(topicBuffer, msgBuffer);
@@ -328,7 +328,7 @@ void loop(void){
       msg.toCharArray(msgBuffer, msg.length() + 1);
       client.publish(topicBuffer, msgBuffer);
       showLedsDebug(true);
-    }   
+    }
 
   }
 }
@@ -340,20 +340,26 @@ void loop(void){
 
 ### 3.2.3 Zumo32U4 code
 
-​​​​Step by step explanation of zumoMain.ino
+​​​​Finally, the time has come to review the .ino file's code of the Zumo 32U4. 
 
 ## 4. Closing remarks
 
-Some really nice conclusion
+​​​​Some really nice conclusion
 
 ## 5. Next steps
 
-Everything that could be done from now onwards with this
+​​​​Due to several factors (especially time constraints), we had to leave many different things out of our project. These "nice to have" features include: 
 
-geolocation
+- Some *geolocation system* for all robots to constantly monitor their positions. Such an improvement would make the robot's finding more optimal, since the leader will be able to move directly to their lost mates. Although we tried this at first, we quickly left it out because most ESP geolocation projects used the Google Maps API, with distance errors considerably bigger than the robot's size.
 
-followers in a conga line
+- An algorithm's modification according to some *faul tolerant* approach (considering more robots are involved). Like in all distributed systems, the devices and the network involved are not perfect, and an unexpected error would turn the whole system useless. An easy way of start managing it may be MQTT "keep alive" and "last will" messages, which can help to automatically track any robot going down. That way, for instance, any found robot could carry on finding their lost mates if the leader went dead of batteries, or the leader would not need to wander around forever trying to find a robot whose connection got lost.
 
-security issues
+- A *leader-following* scheme for all found robots, in the sense of a little swarm algorithm. Initially, we wanted all found robots to follow the leader steps like in a conga line, but this resulted difficult for us in practice. Adding this would be really nice, since it could allow all robots to perform some task after being gathered by their leader.
 
-fault tolerance
+- Some minor *security issues*, including MQTT user id and password, robots being able to logging in and out, messaging encryption, etc.
+
+Alternatively, one could take advantage of the communicational habilities of the NodeMCU combined with MQTT and the many sensors of the Zumo robot to craft some other cool projects. Here are some ideas we came up with:
+
+- A leader robot performs some task, and asks help "on demand" to the other robots. For example, the leader pushes away some obstacles on its own, until it finds something so big that help from its mates is required.
+- The robots adopt some formation around a valuable item they need to protect from an enemy. If someone gets too close, the closest robot will push them away. If any robot "falls in combat", the others should rearrange themselves to keep the formation stable.
+- All robots carry some sensor for measuring anything that would be dangerous for human beings, and coordinate to cover the whole "riskful area".  Combined with geolocation this could be used, for instance, for tracking gas leaks on buildings or other closed spaces.
