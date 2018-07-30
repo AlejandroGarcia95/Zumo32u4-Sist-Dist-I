@@ -76,9 +76,9 @@ Once removed, the LCD releases many pins of the robot's microcontroller. Four of
 
 ###  2.3. Communicating the Zumo and NodeMCU
 
-​​​​Now that is clear how the Zumo 32U4 and the Node MCU operate, we need to electrically connect them to allow interaction with the MQTT broker from the Zumo robot. Since the NodeMCU cannot be directly plugged into the Zumo robot like the LCD display removed, we needed to make a PCB board for every robot like the one showed in the images below: 
+Now that is clear how the Zumo 32U4 and the Node MCU operate, we need to electrically connect them to allow interaction with the MQTT broker from the Zumo robot. Since the NodeMCU cannot be directly plugged into the Zumo robot like the LCD display removed, we needed to make a PCB board for every robot like the one showed in the next images: 
 
-![](EspToZumoCircuit.jpg)
+![](placeholder.jpg)
 
 ​​​​The connections used for the PCB are detailed below. Basically, as explained when analizing the pinout of both NodeMCU and Zumo robot, we used the RX/TX UART pair for communication (RX of one device connected to TX of the other, granting data exchange), and the GND and 5v pins from the robot to power on the NodeMCU. We additionally added two LEDs on GPIOs 5 and 13 of the NodeMCU (green and red, respectively), both optional, and used only for debugging purposes (the red LED is blinked if an error occurs, and the green one if everything was successful). 
 
@@ -88,21 +88,35 @@ Once removed, the LCD releases many pins of the robot's microcontroller. Four of
 
 ​​​​This way, we can send and receive data from both Zumo 32U4 and ESP8285 NodeMCU using their respective UART modules. The many functions of [Arduino Serial](https://www.arduino.cc/reference/en/language/functions/communication/serial/) help us making this communication rather easy: by simply printing a string on Zumo Serial1, we can retrieve it on the NodeMCU with a reading from its Serial. On the other hand, we can send data from the NodeMCU to the Zumo robot by printing on the NodeMCU Serial and reading from the Zumo Serial1. 
 
-​​​​Hence, a message sent from one robot to another follows the path of the image below. As seen, the message is first sent from the origin robot to its own NodeMCU (the one it is connected to), using their respective UART modules. The NodeMCU, which is a client for MQTT, publishes that message on some topic related to the second robot (destination robot on the picture). The MQTT broker handles that message, and forwards it to the NodeMCU on the destination robot, as long as it was a client previously subscribed to the topic of that message. The flow finishes with the NodeMCU sending the message via UART once more to the destination robot, which can finally process it.
+Hence, a message sent from one robot to another follows the path of the image below. As seen, the message is first sent from the origin robot to its own NodeMCU (the one it is connected to), using their respective UART modules. The NodeMCU, which is a client for MQTT, publishes that message on some topic related to the second robot (destination robot on the picture). The MQTT broker handles that message, and forwards it to the NodeMCU on the destination robot, as long as it was a client previously subscribed to the topic of that message. The flow finishes with the NodeMCU sending the message via UART once more to the destination robot, which can finally process it.
 
-![](EspToZumoCircuit.jpg)
+![](placeholder.jpg)
 
 ## 3. Robot's finding in depth
 
-Now that it is clear what devices are involved in our project and how they communicate, we can inspect in detail how our implementation works. The following sections will explain the main idea of our robot's finding distributed algorithm, and review the code on the NodeMCU and the Zumo robot.
+​​​​Now that it is clear what devices are involved in our project and how they communicate, we can inspect in detail how our implementation works. The following sections will explain the main idea of our robot's finding distributed algorithm, and review the code on the NodeMCU and the Zumo robot.
 
 ### 3.1. Algorithm's overview
 
-As in many other distributed system algorithms, we based our robot's finding in an initial leader election. That way, a robot will have a special leader role, while the others will remain as "lost" robots. The leader will then wander around trying to find their lost mates, achieving so by the use of the IR proximity sensors. Notice that leader and lost robots will need to exchange messages during this process (for instance, to distinguish which robot the leader found, or if the leader was seeing a robot or another object with its IR sensors). The coming sections will explain how our algorithm does that, showing the messages exchanged between robots and the little protocol adopted for determinating if a lost robot has been found.
+​​​​As in many other distributed system algorithms, we based our robot's finding in an initial leader election. That way, a robot will have a special leader role, while the others will remain as "lost" robots. The leader will then wander around trying to find their lost siblings, achieving so by the use of the IR proximity sensors. Notice that leader and lost robots will need to exchange messages during this process (for instance, to distinguish which robot the leader found, or if the leader was seeing a robot or another object with its IR sensors). The upcoming sections will explain how our algorithm does that, showing the messages exchanged between robots and the little protocol adopted for determinating if a lost robot has been found.
 
 ### 3.1.1 Robot's finding flowchart
 
-Flowchart and explanation here. Introduce UFMP.
+​​​​According to what we said earlier, our robots behave like the flowchart below states. You can see that, after performing some initial leader election, a robot takes the role of leader, while the others remain on a lost state.
+
+![](mainFlowchart.png)
+
+​​​​The "leader main" subroutine is detailed on the next flowchart. You can see that, after moving around a little, the leader robot checks if something is in front of it by using the IR proximity sensors. If the IR pulses do not bounce back, then the path is clear and the leader may continue walking. But, if they do, and the leader senses it, then it will know something is in front of it, having found perhaps a lost robot. Now, to determinate whether or not the leader has found a lost robot (and which one), our algorithm starts a little invented protocol, which we called "You Found Me Protocol" (UFMP). We will discuss it with more detail in a later section, but basically the UFMP involves some messaging and IR sensing between robots. The relevant part is, after finishing the UFMP, the leader will actually know if it was a lost robot or any other thing what was seen before.
+
+​​​​That way, the leader will walk until something stands in its way and, via the UFMP, will be able to know if that something was a lost robot. Now, our algorithm simply loops this until all robots are found.
+
+![](leaderFlowchart.png)
+
+​​​​On the other hand, the "lost main" subroutine executed by all lost robots makes them all stand still until the leader robot finds something. At that moment, the robots will perform the lost-robot-sided version of the UFMP, in order to tell if the leader can see them or not. A lost robot will then either become found after the UFMP if the leader was really staring at it, or would remain lost waiting for the next time the leader sees something.
+
+![](lostFlowchart.png)
+
+​​​​To sum up, the leader will be constantly wandering around for its lost fellows, and will be able to determinate or not if someone was found using the UFMP. Since this protocol and all the previous synchronization required are based over MQTT messaging system, the next sections will list what kind of messages and topics we used, before really explaining how the UFMP works.
 
 ### 3.1.2. Messaging in our algorithm
 
@@ -350,11 +364,11 @@ void loop(void){
 
 ​​​​Due to several factors (especially time constraints), we had to leave many different things out of our project. These "nice to have" features include: 
 
-- Some *geolocation system* for all robots to constantly monitor their positions. Such an improvement would make the robot's finding more optimal, since the leader will be able to move directly to their lost mates. Although we tried this at first, we quickly left it out because most ESP geolocation projects used the Google Maps API, with distance errors considerably bigger than the robot's size.
+- Some *geolocation system* for all robots to constantly monitor their positions. Such an improvement would make the robot's finding more optimal, since the leader will be able to move directly to their lost peers. Although we tried this at first, we quickly left it out because most ESP geolocation projects used the Google Maps API, with distance errors considerably bigger than the robot's size.
 
 - An algorithm's modification according to some *faul tolerant* approach (considering more robots are involved). Like in all distributed systems, the devices and the network involved are not perfect, and an unexpected error would turn the whole system useless. An easy way of start managing it may be MQTT "keep alive" and "last will" messages, which can help to automatically track any robot going down. That way, for instance, any found robot could carry on finding their lost mates if the leader went dead of batteries, or the leader would not need to wander around forever trying to find a robot whose connection got lost.
 
-- A *leader-following* scheme for all found robots, in the sense of a little swarm algorithm. Initially, we wanted all found robots to follow the leader steps like in a conga line, but this resulted difficult for us in practice. Adding this would be really nice, since it could allow all robots to perform some task after being gathered by their leader.
+- A *leader-following* scheme for all found robots, in the sense of a little swarm algorithm. Initially, we wanted all found robots to follow the leader steps like in a conga line (you can actually find unused but defined message types for this in our code), but this resulted difficult for us in practice. Adding this would be really nice, since it could allow all robots to perform some task after being gathered by their leader.
 
 - Some minor *security issues*, including MQTT user id and password, robots being able to logging in and out, messaging encryption, etc.
 
@@ -363,3 +377,4 @@ Alternatively, one could take advantage of the communicational habilities of the
 - A leader robot performs some task, and asks help "on demand" to the other robots. For example, the leader pushes away some obstacles on its own, until it finds something so big that help from its mates is required.
 - The robots adopt some formation around a valuable item they need to protect from an enemy. If someone gets too close, the closest robot will push them away. If any robot "falls in combat", the others should rearrange themselves to keep the formation stable.
 - All robots carry some sensor for measuring anything that would be dangerous for human beings, and coordinate to cover the whole "riskful area".  Combined with geolocation this could be used, for instance, for tracking gas leaks on buildings or other closed spaces.
+
