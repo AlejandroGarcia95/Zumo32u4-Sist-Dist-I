@@ -106,7 +106,7 @@ Hence, a message sent from one robot to another follows the path of the image be
 
 ![](mainFlowchart.png)
 
-​​​​The "leader main" subroutine is detailed on the next flowchart. You can see that, after moving around a little, the leader robot checks if something is in front of it by using the IR proximity sensors. If the IR pulses do not bounce back, then the path is clear and the leader may continue walking. But, if they do, and the leader senses it, then it will know something is in front of it, having found perhaps a lost robot. Now, to determinate whether or not the leader has found a lost robot (and which one), our algorithm starts a little invented protocol, which we called "You Found Me Protocol" (UFMP). We will discuss it with more detail in a later section, but basically the UFMP involves some messaging and IR sensing between robots. The relevant part is, after finishing the UFMP, the leader will actually know if it was a lost robot or any other thing what was seen before.
+The "leader main" subroutine is detailed on the next flowchart. You can see that, after moving around a little, the leader robot checks if something is in front of it by using the IR proximity sensors. If the IR pulses do not bounce back, then the path is clear and the leader may continue walking. But, if they do, and the leader senses it, then it will know something is in front of it, having found perhaps a lost robot. Now, to determinate whether or not the leader has found a lost robot (and which one), our algorithm starts a little invented protocol, which we called "You Found Me Protocol" (UFMP). We will discuss it with more detail in a later section, but basically the UFMP involves some messaging and IR sensing between robots. The relevant part is, after finishing the UFMP, the leader will actually know if it was a lost robot or any other thing what was seen before.
 
 ​​​​That way, the leader will walk until something stands in its way and, via the UFMP, will be able to know if that something was a lost robot. Now, our algorithm simply loops this until all robots are found.
 
@@ -376,18 +376,16 @@ void loop(void){
 
 ## 4. Closing remarks
 
-​​​​Some really nice conclusion
+​​​​In conclusion, ...
 
 ## 5. Next steps
 
 ​​​​Due to several factors (especially time constraints), we had to leave many different things out of our project. These "nice to have" features include: 
 
 - Some *geolocation system* for all robots to constantly monitor their positions. Such an improvement would make the robot's finding more optimal, since the leader will be able to move directly to their lost peers. Although we tried this at first, we quickly left it out because most ESP geolocation projects used the Google Maps API, with distance errors considerably bigger than the robot's size.
-
 - An algorithm's modification according to some *faul tolerant* approach (considering more robots are involved). Like in all distributed systems, the devices and the network involved are not perfect, and an unexpected error would turn the whole system useless. An easy way of start managing it may be MQTT "keep alive" and "last will" messages, which can help to automatically track any robot going down. That way, for instance, any found robot could carry on finding their lost mates if the leader went dead of batteries, or the leader would not need to wander around forever trying to find a robot whose connection got lost.
-
 - A *leader-following* scheme for all found robots, in the sense of a little swarm algorithm. Initially, we wanted all found robots to follow the leader steps like in a conga line (you can actually find unused but defined message types for this in our code), but this resulted difficult for us in practice. Adding this would be really nice, since it could allow all robots to perform some task after being gathered by their leader.
-
+- Any *memoization strategy* for the leader's walking, that may help it avoiding places where it has been before, or evading previously identified obstacles.
 - Some minor *security issues*, including MQTT user id and password, robots being able to logging in and out, messaging encryption, etc.
 
 Alternatively, one could take advantage of the communicational habilities of the NodeMCU combined with MQTT and the many sensors of the Zumo robot to craft some other cool projects. Here are some ideas we came up with:
