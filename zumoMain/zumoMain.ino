@@ -16,7 +16,7 @@ const String LEADER_TOPIC = "leader";
 // Global IDs for our protocols
 
 const int robotsAmount = 3; // Including leader
-const int myRobotId = 1;
+const int myRobotId = 0;
 const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
 // Various constants for the protocols
@@ -68,7 +68,7 @@ void idle() {
     }
     // Check if I can see the leader too
     SAY("Leader saw something, checking if it was me...");
-    if(drainMode(90)){
+    if(drainMode(89)){
         msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
         sendToEsp(msg);
         // TODO: should wait for leader response
@@ -86,9 +86,10 @@ void idle() {
   // TODO: Change for a fancier exit
   UNSUBSCRIBE_FROM(LOST_TOPIC);
   ledYellow(1);
-  delay(1500);
-  rotate(90, true);
-  moveDistanceInTime(10, 3, true);
+  delay(500);
+  rotate(47, true);
+  rotate(47, true);
+  moveDistanceInTime(28, 3, false);
 }
 
 /* Function states for LEADER robots */
@@ -118,6 +119,7 @@ void searching() {
     while(robotsReplies < (robotsAmount - robotsFound - 1)){ 
       msg = sourceMode();
       if(getMessageType(msg) == MSG_CU2) {
+        delay(1000);
         SAY("I found " + getMessagePayload(msg) + "!");
         robotsReplies++;
         robotsFound++;
@@ -125,15 +127,17 @@ void searching() {
         foundSomeone = true;
       }
       if(getMessageType(msg) == MSG_CUN) {
+        delay(1000);
         SAY("I haven't found " + getMessagePayload(msg) + " as they can't see me");
         robotsReplies++;
       }
     }
   
-    if(foundSomeone)
+    if(foundSomeone) {
+      delay(2600); // Allow the found robot to step aside
       if((robotsAmount - robotsFound) > 1)
         SAY("I still need to find " + String(robotsAmount - robotsFound - 1) + " lost robots");
-    else
+    } else
       SAY("What I found was not a robot fella");
   
   }
@@ -182,7 +186,7 @@ bool drainMode(int delta_phi){
   return false;
 }
 
-// TODO: Replace with real randomWalk
+// TODO: Move inside the searching function
 int spiral_steps = 1;
 int spiral_stage = 0;
 int spiral_act = 0;
@@ -198,7 +202,8 @@ void spiralWalk(){
     } else {
       // rotate
       spiral_act = 0;
-      rotate(89, true);
+      rotate(48, true);
+      rotate(47, true);
       if (spiral_stage % 2 == 1) {
         spiral_steps++;
       }
@@ -217,14 +222,13 @@ void spiralWalk(){
 void subscribeToSelfTopic(){
   String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
   sendToEsp(msg);
-  Serial.println(msg);
 }
 
 void waitForEsp(){
   Serial.println("\nWaiting for ESP to be ready...");
   String msg = receiveFromEsp();
   while(getMessageType(msg) != MSG_ERDY) {
-    delay(30);
+    //delay(30);
     msg = receiveFromEsp();
   }
   Serial.println("ESP is ready!");
