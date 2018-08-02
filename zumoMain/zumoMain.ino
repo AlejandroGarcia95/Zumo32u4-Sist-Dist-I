@@ -9,13 +9,13 @@
 
 // Special topics used for our protocols
 
+const String LDR_ELECTION_TOPIC = "election";
 const String LOST_TOPIC = "lost";
-const String FOLLOWERS_TOPIC = "followers";
 const String LEADER_TOPIC = "leader";
 
 // Global IDs for our protocols
 
-const int robotsAmount = 3; // Including leader
+const int robotsAmount = 4; // Including leader
 const int myRobotId = 0;
 const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
@@ -23,6 +23,8 @@ const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
 #define DRAIN_ATTEMPTS 20 // Used by drainMode
 #define SOURCE_TRANSMIT_DELAY 40 // Used by sourceMode
+#define DELTA_PHI 89 // Used for UFMP
+#define LDR_ELECTION_TIMEOUT 10000 // Used for leader election
 
 // Fancy macros
 
@@ -68,7 +70,7 @@ void idle() {
     }
     // Check if I can see the leader too
     SAY("Leader saw something, checking if it was me...");
-    if(drainMode(89)){
+    if(drainMode(DELTA_PHI)){
         msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
         sendToEsp(msg);
         // TODO: should wait for leader response
@@ -126,7 +128,7 @@ void searching() {
         // TODO: Send response to robot
         foundSomeone = true;
       }
-      if(getMessageType(msg) == MSG_CUN) {
+      else if(getMessageType(msg) == MSG_CUN) {
         delay(1000);
         SAY("I haven't found " + getMessagePayload(msg) + " as they can't see me");
         robotsReplies++;
@@ -220,8 +222,7 @@ void spiralWalk(){
 
 // Shouldn't be needed, but just in case
 void subscribeToSelfTopic(){
-  String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
-  sendToEsp(msg);
+  SUBSCRIBE_TO(ROBOT_ID_TO_NAME(myRobotId));
 }
 
 void waitForEsp(){
@@ -235,13 +236,49 @@ void waitForEsp(){
 }
 
 void leaderElection(){
-  // Nice to have: A real leader election
-  delay(500);
+  /*
   if(myRobotId == 0) {// Cassandra is the leader
     imLeader = true;
     SUBSCRIBE_TO(LEADER_TOPIC);
     SAY("I am the leader");
   }
+  */
+  SAY("I'm voting in the leader election");
+  int leaderId = myRobotId;
+  SUBSCRIBE_TO(LDR_ELECTION_TOPIC);
+  // Publish own id as leader
+  String msg = createMessage(MSG_LDRE, String(leaderId), LDR_ELECTION_TOPIC);
+  sendToEsp(msg);
+  
+  // Wait a while checking if a better leader shows up
+  unsigned long startingTime = millis();
+  while((millis() - startingTime) < LDR_ELECTION_TIMEOUT){
+    msg = receiveFromEsp();
+    if(getMessageType(msg) == MSG_NONE)
+      delay(30);
+    else if(getMessageType(msg) == MSG_LDRE){
+      int newId = getMessagePayload(msg).toInt();
+      if(newId <= leaderId) // There's a better leader
+        leaderId = newId;
+      else { // I Know a better leader
+        msg = createMessage(MSG_LDRE, String(leaderId), LDR_ELECTION_TOPIC);
+        sendToEsp(msg);
+      }     
+    }
+    
+  }
+
+  UNSUBSCRIBE_FROM(LDR_ELECTION_TOPIC);
+  if(leaderId == myRobotId) {
+    imLeader = true;
+    SAY("I am the leader");
+    SUBSCRIBE_TO(LEADER_TOPIC);
+    // Give lost robots some time to enter lost state
+    delay(LDR_ELECTION_TIMEOUT / 3);
+  }
+  else
+    SAY("All hail the leader " + ROBOT_ID_TO_NAME(leaderId));
+
 }
 
 // ---------------------------- MAIN PROGRAM ----------------------------

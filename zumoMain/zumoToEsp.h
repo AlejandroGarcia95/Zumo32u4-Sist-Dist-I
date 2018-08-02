@@ -30,6 +30,9 @@ const String MSG_UNSUB = "UNSUB";
 // Message for telling Zumo the ESP is ready
 const String MSG_ERDY = "ERDY";
 
+// Message for leader election
+const String MSG_LDRE = "LDRE";
+
 // Messages for UFMP
 const String MSG_ICU = "ICU"; // I see you
 const String MSG_CU2 = "CU2"; // See you too
