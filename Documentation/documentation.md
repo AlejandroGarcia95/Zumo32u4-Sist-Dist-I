@@ -374,11 +374,34 @@ void loop(void){
 
 ​​​​Finally, the time has come to review the .ino file's code of the Zumo 32U4. 
 
-## 4. Closing remarks
+## 4. Robot's finding in action
+
+​​​​After a really long explanation of our project, finally the time has come for watching some action! However, when trying to test this by yourself, you may find some problems with the IR proximity sensors. Hence, before jumping into programming the robots, you may want to read the following advice: **Zumo 32U4 robots may have a bad time detecting each other since they are black**. 
+
+​​​​As you had surely heard, light (and, of course, IR pulses) bounces back better on white surfaces, but not on black ones. This makes things difficult for the leader robot, which cannot easily detect its mates if they are not facing it directly. In other words, it is very unlikely for the leader to "see" another lost robot from the side or the back.  
+
+​​​​One simple way we found to prevent this from happening was covering the robots with white tape. Although it is not the latest trend in robot's fashion, this really meant an improvement in IR detection.
+
+![](placeholder.jpg)
+
+![](placeholder.jpg)
+
+​​​​Also, we used white tape for covering the left and right IR sensors of the robots. We did this because we wanted robots to "see" each other front to front and not by the side:
+
+![](placeholder.jpg)
+
+​​​​Now, we have everything ready for trying out the robot's finding algorithm. You will have to program all of your ESP8285 NodeMCU and Zumo 32U4 robots like explained in the preliminary section (remember that you will have to change the ids of both the ESP and the robot in the first lines of code to be unique), and have the MQTT broker running on the same IP address and port as defined in the espMain.ino file. By running on a terminal the command `mosquitto_sub -t debug` you can log the messages published on the debug topic by all robots, thus being able to trace all algorithm's steps.
+
+![](placeholder.jpg)
+
+​​​​A full video of the robot's finding can be found here. You will be able to see the different parts of our algorithm briefly explained over some real testing cases. 
+
+
+## 5. Closing remarks
 
 ​​​​In conclusion, ...
 
-## 5. Next steps
+## 6. Next steps
 
 ​​​​Due to several factors (especially time constraints), we had to leave many different things out of our project. These "nice to have" features include: 
 
