@@ -79,7 +79,6 @@ void lostMain(){
       sendToEsp(msg);
       SAY("Nope, it was not me!");
     }
-
   }
 
   // Exit from stage as I was already found
@@ -151,7 +150,7 @@ void leaderMain(){
   ledRed(1);
   ledGreen(1);
   while(1)      // Nice to have: sleep mode or
-    delay(3000);// do smth now that was found 
+    delay(3000);// do smth now that was found
 }
 
 // ---------------------- AUXILIAR FUNCTIONS ----------------------
@@ -164,6 +163,8 @@ String sourceMode(){
   SAY("Turning LEDs on and waiting for response...");
   String msg = receiveFromEsp();
 
+  // TODO: change to a for in order to avoid infinite loop
+  // if no response
   while(getMessageType(msg) == MSG_NONE){
     objectIsInFront();
     delay(SOURCE_TRANSMIT_DELAY);
@@ -189,7 +190,8 @@ bool drainMode(int delta_phi){
         return true;
   }
 
-  return false;
+  SAY("Finishing handshake");
+  return true;
 }
 
 /* Walking function for the leader to cover the whole space in a spiral-shaped
@@ -297,6 +299,7 @@ void setup(){
   setupToEsp();
   setupProximity();
   setupLedsDebug();
+  buttonA.waitForButton();
   waitForEsp();
   subscribeToSelfTopic();
   ledYellow(0);
