@@ -6,19 +6,20 @@
 
 // ---------------- WIFI CONNECTION CONSTANTS ----------------
 
-#define WIFI_NETS 3 // Change when adding more networks
+#define WIFI_NETS 4 // Change when adding more networks
 
 #define CONNECTION_ATTEMPTS 8
 #define CONNECTION_DELAY 900
 
-#define MQTT_SERVER_IP "192.168.0.7"
-//#define MQTT_SERVER_IP "192.168.1.50"
+//#define MQTT_SERVER_IP "192.168.1.15"
+//#define MQTT_SERVER_IP "192.168.0.7"
+#define MQTT_SERVER_IP "192.168.1.50"
 #define MQTT_SERVER_PORT 1883
 
-const char* ssid[] = {"Telecentro-40a8", "Speedy-Fibra-BF992E", "HUAWEI P9 lite", "Add your WiFi net here"};
-const char* password[] = {"DDZ2WNHZ2NKN", "98A896E433FeA5BcF544", "ipv6isgood", "And its password here"};
+const char* ssid[] = {"Speedy-Fibra-BF992E", "HUAWEI P9 lite", "WiFi-Arnet-F-2.4", "Telecentro-40a8", "Add your WiFi net here"};
+const char* password[] = {"98A896E433FeA5BcF544", "ipv6isgood", "juanca01", "DDZ2WNHZ2NKN", "And its password here"};
 
-const char espId[] = "Mongo";
+const char espId[] = "Cassandra";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -69,6 +70,7 @@ void reconnect() {
       serialPrint("Connected!");
       // ... and resubscribe
       client.subscribe(espId);
+      //client.publish("debug", "ESP IS UP");
     } else {
       serialPrint("Failed! rc= " + String(client.state()));
       serialPrint("Trying again in 2 seconds");
@@ -140,6 +142,10 @@ void loop(void){
     char msgBuffer[50] = {0};
     if(msgType == MSG_SUB) {
       client.subscribe(topicBuffer);
+      showLedsDebug(true);
+    }
+    else if(msgType == MSG_UNSUB) {
+      client.unsubscribe(topicBuffer);
       showLedsDebug(true);
     }  
     else if(msgType == MSG_DEBUG){

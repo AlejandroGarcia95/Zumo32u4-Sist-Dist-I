@@ -9,24 +9,24 @@
 
 // Special topics used for our protocols
 
+const String LDR_ELECTION_TOPIC = "election";
 const String LOST_TOPIC = "lost";
-const String FOLLOWERS_TOPIC = "followers";
 const String LEADER_TOPIC = "leader";
 
 // Global IDs for our protocols
 
+const int robotsAmount = 4; // Including leader
 const int myRobotId = 0;
-const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
+const String ROBOT_NAMES[] = {"Cassandra", "Maria", "Mongo", "Neo"};
 
 // Various constants for the protocols
 
+#define LDR_ELECTION_TIMEOUT 9000 // Used for leader election
 #define DRAIN_ATTEMPTS 20 // Used by drainMode
 #define SOURCE_TRANSMIT_DELAY 40 // Used by sourceMode
-#define HALF_HANDSHAKE_ITERATIONS 3 // Used by handshake
-#define CLOCKWISE true
-#define ANTICLOCKWISE false
-#define UNTIL_SEE_SOMETHING true
-#define UNTIL_SEE_NOTHING false
+#define DELTA_PHI 12 // Used for UFMP
+#define DODGING_ANGLE 30 // Used to dodge obstacles
+#define SPIRAL_CELL 5 // Used in spiralWalk
 
 // Fancy macros
 
@@ -37,122 +37,129 @@ const String ROBOT_NAMES[] = {"Mongo", "Cassandra", "Maria", "Neo"};
 #define UNSUBSCRIBE_FROM(topic) (sendToEsp(createMessage(MSG_UNSUB, "", topic)))
 
 /* Global variables that magically map themselves with the robot's
-true hardware stuff (think of them as singleton objects). */
+  true hardware stuff (think of them as singleton objects). */
 
 Zumo32U4Motors motors;
-Zumo32U4ButtonA buttonA;
-Zumo32U4ButtonB buttonB;
-Zumo32U4ButtonC buttonC;
 Zumo32U4Encoders encoders;
 Zumo32U4ProximitySensors proxSensors;
 L3G gyro;
 
-
 bool imLeader = false;
 
-/* Function states for LOST robots */
+// --------------- LEADER AND LOST MAIN FUNCTIONS ---------------
 
-/*
- * The robot in idle state will keep idling with it's sensors on.
- * If it detects something, it will send a message to the leader
- * and await for a ACK and a order to start a handshake.
- */
-void idle() {
+/* Main function for a lost robot. All lost robots will wait for
+  the leader to see something, and then start the UFMP to check
+  if they can see the leader too by sensing the IR pulses emitted
+  from it. The proper answer will be forwarded to the leader, and
+  the robot will "leave stage" after being found. */
+void lostMain(){
   SUBSCRIBE_TO(LOST_TOPIC);
   SAY("Entering IDLE state");
   String msg = receiveFromEsp();;
 
-  // Loop until the leader sees me
-  while(getMessageType(msg) != MSG_ICU) {
-    delay(30);
-    msg = receiveFromEsp();
-  }
-  // Check if I can see the leader too
-  SAY("Leader saw something, checking if it was me...");
-  if(drainMode(10, true, true)){
-    msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
-    sendToEsp(msg);
-
-    // TODO: should wait for leader response
-    SAY("Hey, you found me!");
-
-    // Initiate handshake
-    bool aligned = handshake(false, LEADER_TOPIC, 16);
-    if (aligned) {
-      ledYellow(1);
-      UNSUBSCRIBE_FROM(LOST_TOPIC);
-      SAY("We are aligned!!!");
+  // Be a lost robot until the leader finds me
+  bool imSeen = false;
+  while(!imSeen){
+    // Wait for the leader to see something
+    while(getMessageType(msg) != MSG_ICU){
+      delay(30);
+      msg = receiveFromEsp();
+    }
+    // UFMP: check if I can see the leader too
+    SAY("Leader saw something, checking if it was me...");
+    if(drainMode(DELTA_PHI)){
+      msg = createMessage(MSG_CU2, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+      sendToEsp(msg);
+      SAY("Hey, you found me!");
+      imSeen = true;
+    }
+    else{
+      msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
+      sendToEsp(msg);
+      SAY("Nope, it was not me!");
     }
   }
-  else {
-    msg = createMessage(MSG_CUN, ROBOT_ID_TO_NAME(myRobotId), LEADER_TOPIC);
-    sendToEsp(msg);
-    SAY("Nope, it was not me!");
-  }
-}
 
-/* Function states for LEADER robots */
-
-/*
- * A Leader in searching state starts moving forwards (TODO: 
- * make it turn) and constantly senses if there is something
- * in front. If there is something, it sends a message to the
- * lost robots and enters state leader_source()
- */
-void searching() {
-  SAY("I am looking for robots");
-  // Move until something is found
-  bool found = false;
-  while(!found) {
-    delay(1000);
-    moveDistanceInTime(5, 3, false);
-
-    if(objectIsInFront()) {
-      found = true;
-    }  
-  }
-  
-  // Found something, tell all lost robots
-  SAY("I see something");
-  String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
-  sendToEsp(msg);
+  // Exit from stage as I was already found
+  UNSUBSCRIBE_FROM(LOST_TOPIC);
   ledYellow(1);
-  
-  // Wait for lost robots to reply
-  String foundOne;
-
-  while(true){ // TODO: loop until all robots reply (add counter)
-    msg = sourceMode();
-    if(getMessageType(msg) == MSG_CU2) {
-      foundOne = getMessagePayload(msg);
-      SAY("I found " + foundOne + "!");
-      break;
-    }
-    if(getMessageType(msg) == MSG_CUN) {
-      SAY("I found an obstacle");
-      break;
-    }
-  }
-
-  delay(2000);
-  SAY("I'm gonna start aligning, dude!");
-  // TODO: keep only one robot, reject others even if they CU2
-  // Starting alignment 
-  bool aligned = handshake(true, foundOne, 16);
-  if (aligned) {
-      ledYellow(0);
-      ledGreen(1);
-      SAY("We are aligned!!!");
-  }
+  ledRed(1);
+  ledGreen(1);
+  delay(500);
+  moveDistanceInTime(60, 6, true);
+  while(1)      // Nice to have: sleep mode or
+    delay(3000);// do smth now that was found 
 }
 
-// ------------------------ UFMP FUNCTIONS ------------------------
+/* Main function for the leader robot. The leader's mission is
+  to walk around trying to find the lost robots. Every time
+  something is seen with the proximity sensors, the leader will
+  start the UFMP by multicasting an ICU message to all lost robots.
+  By collecting all lost robot's answers, the leader can know if
+  it found a lost robot, or an obstacle (and will dodge it).
+  This is repeated until all lost robots are found. */
+void leaderMain(){
+  SAY("I am looking for robots");
+  int robotsFound = 0;
+  // Continue while there are robots left
+  while(robotsFound < (robotsAmount - 1)){
+    // Move until something is found
+    spiralWalk();
+
+    // UFMP: Found something, tell all lost robots
+    SAY("I see something");
+    String msg = createMessage(MSG_ICU, "", LOST_TOPIC);
+    sendToEsp(msg);
+
+    // Wait for lost robots to reply
+    int robotsReplies = 0;
+    bool foundSomeone = false;
+    while(robotsReplies < (robotsAmount - robotsFound - 1)){
+      msg = sourceMode();
+      if (getMessageType(msg) == MSG_CU2){
+        delay(1000);
+        SAY("I found " + getMessagePayload(msg) + "!");
+        robotsReplies++;
+        robotsFound++;
+
+        foundSomeone = true;
+      }
+      else if(getMessageType(msg) == MSG_CUN){
+        delay(1000);
+        SAY("I haven't found " + getMessagePayload(msg) + " as they can't see me");
+        robotsReplies++;
+      }
+    }
+
+    // Allow the found robot to leave stage or dodge obstacle accordingly
+    if(foundSomeone){
+      delay(2600); // Allow the found robot to step aside
+      if((robotsAmount - robotsFound) > 1)
+        SAY("I still need to find " + String(robotsAmount - robotsFound - 1) + " lost robots");
+    } else {
+      SAY("What I found was not a robot fella");
+      rotate(DODGING_ANGLE, true);
+    }
+
+  }
+
+  // All robots were found
+  SAY("I finally found all my robot mates");
+  ledYellow(1);
+  ledRed(1);
+  ledGreen(1);
+  while(1)      // Nice to have: sleep mode or
+    delay(3000);// do smth now that was found
+}
+
+// ---------------------- AUXILIAR FUNCTIONS ----------------------
 
 /* Turns the robot into source mode, making it emit IR pulses with a
-delay of SOURCE_TRANSMIT_DELAY between each consecutive transmition.
-This function will make the robot emit pulses until a message arrives
-from the ESP, returning it as a String. */
-String sourceMode() {
+  delay of SOURCE_TRANSMIT_DELAY between each consecutive transmition.
+  This function will make the robot emit pulses until a message arrives
+  from the ESP, returning it as a String. */
+String sourceMode(){
   SAY("Turning LEDs on and waiting for response...");
   String msg = receiveFromEsp();
 
@@ -168,155 +175,125 @@ String sourceMode() {
 }
 
 /* Turns the robot into drain mode, passively sensing IR without emiting
-pulses. This function makes the robot rotate delta_phi degrees clockwise
-(or anti-clockwise, depending on the second parameter), before
-performing DRAIN_ATTEMPTS attempts of IR pulses detection.
-If any of these attempts does not match the third parameter, the function
-returns true WITH THE ROBOT STANDING IN THAT POSITION (i.e. the robot
-will be facing towards the direction where it first sensed pulses, or stoped
-sensing them). If no changes in IR pulses detection where made after having
-rotated 360 degrees, the function returns -1, else it returns the angle
-turned.*/
-int drainMode(int delta_phi, bool isClockwise, bool something) {
-  for (int i = 0; i <= 360; i += delta_phi) {
-    rotate(delta_phi, isClockwise);
+  pulses. This function makes the robot rotate delta_phi degrees clockwise
+  before performing DRAIN_ATTEMPTS attempts of IR pulses detection. If any
+  of these attempts detects IR pulses, the function returns true WITH THE
+  ROBOT STANDING IN THAT POSITION (i.e. the robot will be facing towards
+  the IR pulses' source). If no IR pulses were ever detected after having
+  rotated 360 degrees, the function returns false.*/
+bool drainMode(int delta_phi){
+  for(int i = 0; i <= 360; i += delta_phi){
+    rotate(delta_phi, true);
 
-    bool foundPulses = false;
-    for(int j = 0; j < DRAIN_ATTEMPTS; j++)
-      if(detectIRPulses())
-        foundPulses = true;
-    
-    if(something == foundPulses)
-      return i;
-  }
-
-  return -1;
-}
-
-/* Perform a handshake to align two robots. The robots are identified by its
-topics: this function will align self robot and robot listening at other_topic.
-The varialbe first should be set in only one of the robots, to inidicate who is
-going to be rotating first.
-Robots perform an alignment based on bisecting the range in which they sense the
-other robot, by moving increments of delta_phi.
-The constant HALF_HANDSHAKE_ITERATIONS indicates how many "half handshakes" will be
-performed: a half handshake involves one robot rotating while the other is sourcing.
-After a half handshake, the robots switch places. A full handshake step ends when
-the two robots have gone through both roles. If there are half handshakes left, another
-iteration will begin, but the increments delta_phi will be halved as an attempt to
-inprove accuracy.
-
-If an error occurs at any time (e.g. a message of the wrong type is received), 
-the function abruptly ends by returning false. Otherwise, it returns true when
-both robots have finished alignment.
-Powered by: modulo 2 arithmetic
-*/
-bool handshake(bool first, String other_topic, int delta_phi) {
-  SAY("On handshake against " + other_topic);
-  String msg;
-  int stage = (first ? 1 : 0);
-  SAY("Starting handshake on stage " + String(stage));
-
-  for (int i = 0; i < HALF_HANDSHAKE_ITERATIONS; i++) {
-    if((stage % 2) == 1) {
-      delay(200);
-      SAY("I am sourcing on half handshake " + String(i));
-      msg = createMessage(MSG_SA, "", other_topic);
-      sendToEsp(msg);
-      
-      // Start sourcing and wait for response
-      msg = sourceMode();
-      if (getMessageType(msg) != MSG_FA){
-        SAY("Unexpected message type while alignment");
-        return false;
-      }
-
-    } else {
-      SAY("I am rotating on half handshake " + String(i));
-      // Wait for signal to start rotating
-      msg = receiveFromEsp();
-      while(getMessageType(msg) == MSG_NONE){
-        delay(20);
-        msg = receiveFromEsp();
-      }
-      if (getMessageType(msg) != MSG_SA){
-        SAY("Unexpected message type while alignment");
-        return false;
-      }
-
-      // I must rotate
-      int turned = drainMode(delta_phi, ANTICLOCKWISE, UNTIL_SEE_NOTHING);
-      if (turned < 0) return false;
-
-      turned = drainMode(delta_phi, CLOCKWISE, UNTIL_SEE_SOMETHING);
-      if (turned < 0) return false;
-
-      turned = drainMode(delta_phi, CLOCKWISE, UNTIL_SEE_NOTHING);
-      if (turned < 0) return false;
-
-      // Anticlockwise half the ammount turned last time
-      rotate(turned * 0.5, ANTICLOCKWISE);
-
-      SAY("I'm alligned");
-      msg = createMessage(MSG_FA, "", other_topic);
-      sendToEsp(msg);
-    }
-    stage++;
-
-    // If a whole handshake step has ended, halve the angle
-    if ((i % 2) == 1) {
-      delta_phi /= 2;
-    }
+    for(int i = 0; i < DRAIN_ATTEMPTS; i++)
+      if (detectIRPulses())
+        return true;
   }
 
   SAY("Finishing handshake");
   return true;
 }
 
-// ---------------------- AUXILIAR FUNCTIONS ----------------------
+/* Walking function for the leader to cover the whole space in a spiral-shaped
+  path. The spiral will be considered as "squared", like inside a grid, with
+  every cell of size SPIRAL_CELL cm. This function makes the leader walk the
+  squared spiral until something is detected with the proximity sensors. */
+int spiral_steps = 1;
+int spiral_stage = 0;
+int spiral_act = 0;
 
-// Shouldn't be needed, but just in case
-void subscribeToSelfTopic(){
-  String msg = createMessage(MSG_SUB, "", ROBOT_ID_TO_NAME(myRobotId));
-  sendToEsp(msg);
+void spiralWalk(){
+  long rnd;
+  bool found = false;
+  while(!found){
+    delay(1000);
+    if (spiral_act < spiral_steps){
+      moveDistanceInTime(SPIRAL_CELL, 2, false);
+      spiral_act++;
+    } else{
+      // Rotating
+      spiral_act = 0;
+      rotate(48, true);
+      rotate(47, true);
+      if (spiral_stage % 2 == 1){
+        spiral_steps++;
+      }
+      spiral_stage++;
+    }
+
+    if (objectIsInFront()){
+      found = true;
+    }
+  }
 }
 
+/* Starting function for subscribing every robot to its own topic. */
+void subscribeToSelfTopic(){
+  SUBSCRIBE_TO(ROBOT_ID_TO_NAME(myRobotId));
+}
+
+/* Waits for the ESP to be ready for communication. Just makes the robot
+  wait for the ERDY message from the ESP. */
 void waitForEsp(){
   Serial.println("\nWaiting for ESP to be ready...");
   String msg = receiveFromEsp();
-  while(getMessageType(msg) != MSG_ERDY) {
-    delay(30);
+  while(getMessageType(msg) != MSG_ERDY){
+    //delay(30);
     msg = receiveFromEsp();
   }
   Serial.println("ESP is ready!");
 }
 
+/* Initial leader election to determinate which robot will have to 
+  look for the others. Basically, all robots publish their robotId
+  to the LDR_ELECTION_TOPIC and the one with smaller robotId becomes
+  the leader. Note the election will finish after LDR_ELECTION_TIMEOUT
+  miliseconds after the last message received on LDR_ELECTION_TOPIC. */
 void leaderElection(){
-  // Nice to have: A real leader election
-  delay(1000);
-  if(myRobotId == 1) {// Cassandra is the leader
-    imLeader = true;
-    SUBSCRIBE_TO(LEADER_TOPIC);
-    SAY("I am the leader");
+  SAY("I'm voting in the leader election");
+  int leaderId = myRobotId;
+  SUBSCRIBE_TO(LDR_ELECTION_TOPIC);
+  // Publish own id as leader
+  String msg = createMessage(MSG_LDRE, String(leaderId), LDR_ELECTION_TOPIC);
+  sendToEsp(msg);
+
+  // Wait a while checking if a better leader shows up
+  unsigned long lastMsgTime = millis();
+  while((millis() - lastMsgTime) < LDR_ELECTION_TIMEOUT){
+    msg = receiveFromEsp();
+    if(getMessageType(msg) == MSG_NONE)
+      delay(30);
+    else if(getMessageType(msg) == MSG_LDRE){
+      lastMsgTime = millis();
+      int newId = getMessagePayload(msg).toInt();
+      if (newId <= leaderId) // There's a better leader
+        leaderId = newId;
+      else{ // I Know a better leader
+        msg = createMessage(MSG_LDRE, String(leaderId), LDR_ELECTION_TOPIC);
+        sendToEsp(msg);
+      }
+    }
+
   }
+
+  UNSUBSCRIBE_FROM(LDR_ELECTION_TOPIC);
+  if(leaderId == myRobotId){
+    imLeader = true;
+    SAY("I am the leader");
+    SUBSCRIBE_TO(LEADER_TOPIC);
+    // Give lost robots some time to enter lost state
+    delay(LDR_ELECTION_TIMEOUT / 3);
+  }
+  else
+    SAY("All hail the leader " + ROBOT_ID_TO_NAME(leaderId));
+
 }
 
 // ---------------------------- MAIN PROGRAM ----------------------------
 
-void leaderMain(){
-  searching();
-  // TODO: Finish in a more decent manner
-  while(true) delay(3000);
-}
-
-void followerMain(){
-  idle();
-  // TODO: Finish in a more decent manner
-  while(true) delay(3000);
-}
 
 // Called only once when robot starts
-void setup() {
+void setup(){
   setupZumoMovement();
   Serial.begin(9600);
   setupToEsp();
@@ -332,12 +309,12 @@ void setup() {
 }
 
 
-void loop() {
+void loop(){
   // Pretty straight forward
   if(imLeader)
     leaderMain();
   else
-    followerMain();
+    lostMain();
 }
 
 
