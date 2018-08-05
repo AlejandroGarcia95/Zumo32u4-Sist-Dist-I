@@ -1,29 +1,13 @@
-# Zumo32u4-Sist-Dist-I
+# Wi-Fi based robot's finding over ESP8285 NodeMCU
 
-## Uploading .ino to ESP8285 Node MCU
+##Final project for Distributed Systems I, FIUBA 
 
-- Select board as "Generic 8285 module"
-- Select flash size as "1M (64K SPIFFS)"
-- Select reset method "nodemcu"
+In this project, we proposed and implemented a distributed robot's finding algorithm over the well known ESP IoT modules. You can read the [full documentation](https://github.com/AlejandroGarcia95/Zumo32u4-Sist-Dist-I/blob/master/Documentation/documentation.md), watch [this project's video](https://www.youtube.com/watch?v=UtYlBuLUE_0&feature=youtu.be) or try it out on your own.
 
-## Connection diagram
+List of everything needed:
 
-Connection for this example (no need to have Pololu or ESP connected to PC via USB):
-
-|  POLOLU   | ESP  |
-| :-------: | :--: |
-|    GND    | GND  |
-|   RXD1    |  Tx  |
-|   TXD1    |  Rx  |
-| 5v output | Vin  |
-
-Also, ESP pin 5 blinks an LED when request is completed.
-
-Usage: go to URI ESP_IP:8080/rotate?angle=X     with 1 < X < 90 and ESP_IP the IP of the ESP. Remember to edit the Wifi and password net on the .ino file!
-
-
-
-## The Zumo 32U4 robot
-
-​	The main ingredient of our project is Pololu's Zumo 32U4, a mini-sumo preassembled robot controlled by an Arduino-compatible ATmega32U4. Among some useful things, the Zumo 32U4 has a pair of motors with encoders, proximity IR sensors, a gyro and a micro-USB port. You can find the Zumo 32U4 user's guide [here](https://www.pololu.com/docs/0J63/all). Also, since the robot has its own easy to use library, you can find [many examples on Github](https://github.com/pololu/zumo-32u4-arduino-library/tree/master/examples). You may also want to check  the [library documentation](http://pololu.github.io/zumo-32u4-arduino-library/).
-
+- Pololu's Zumo 32U4 robots in a desired amount (we used four in our case).
+- ESP8285 NodeMCU (or any ESP module), one for each Zumo robot.
+- A computer or any other device to use as MQTT broker.
+- Any Wi-Fi network to connect the devices to.
+- Wires and some other common materials for making the PCBs connecting the robots to their ESPs (check the preliminary section of the documentation).
