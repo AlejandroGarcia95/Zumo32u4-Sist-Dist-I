@@ -1,6 +1,6 @@
 # Wi-Fi based robot's finding over ESP8285 NodeMCU
 
-##Final project for Distributed Systems I, FIUBA 
+## Final project for Distributed Systems I, FIUBA 
 
 In this project, we proposed and implemented a distributed robot's finding algorithm over the well known ESP IoT modules. You can read the [full documentation](https://github.com/AlejandroGarcia95/Zumo32u4-Sist-Dist-I/blob/master/Documentation/documentation.md), watch [this project's video](https://www.youtube.com/watch?v=UtYlBuLUE_0&feature=youtu.be) or try it out on your own.
 
